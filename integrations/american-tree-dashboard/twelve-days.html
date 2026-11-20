@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- iPhone: opens full screen from the home screen (same setup as the other dashboard pages). -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="American Tree" />
+  <meta name="theme-color" content="#070f0c" />
+  <meta name="format-detection" content="telephone=no" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="robots" content="noindex" />
+  <title>Twelve Days of Christmas | American Tree Colorado</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script>tailwind.config = { future: { hoverOnlyWhenSupported: true }, theme: { extend: { colors: { brand: { 400: '#b7cf57', 500: '#2f6b4a', 600: '#24553b' } } } } }</script>
+  <link rel="stylesheet" href="glass.css" />
+  <!-- Google Tag Manager: same container as index.html -->
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-MHLKM5PD');</script>
+  <style>
+    /* The wheel turns about its centre (0,0 in the SVG viewBox). Transitions are switched on by the script after first paint. */
+    #wheel { transform-box: view-box; transform-origin: 0 0; }
+    .wedge { cursor: pointer; }
+    .wedge:focus { outline: none; }
+    .wedge:focus-visible path { stroke: #f0d080; stroke-width: 3; }
+    .wedge[aria-pressed="true"] path { fill: #3f8a5f; }
+    @media (prefers-reduced-motion: reduce) { #wheel { transition: none !important; } }
+  </style>
+</head>
+<body class="h-dvh flex overflow-hidden font-sans antialiased text-slate-100">
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MHLKM5PD" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- Sidebar: same navigation as the main dashboard (index.html); tab links open /#tab -->
+  <div id="navBackdrop" onclick="toggleNav(false)" class="fixed inset-0 z-30 bg-black/60 hidden md:hidden"></div>
+  <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-72 max-w-[85vw] -translate-x-full transition-transform duration-200 bg-slate-950/95 md:bg-slate-950/50 backdrop-blur-xl border-r border-white/5 flex flex-col justify-between overflow-y-auto md:static md:w-64 md:translate-x-0 md:shrink-0">
+    <div>
+      <div class="h-16 flex items-center justify-between px-4 border-b border-white/5">
+        <a href="/" class="bg-white rounded-md px-2 py-1"><img src="icons/logo-color.png" alt="American Tree Colorado" class="h-9 w-auto"></a>
+        <button type="button" onclick="toggleNav(false)" class="md:hidden -mr-2 p-2 rounded-lg text-slate-400 hover:bg-slate-800" aria-label="Close menu">✕</button>
+      </div>
+      <nav id="mainNav" data-current="twelvedays"></nav>
+      <script src="nav.js"></script>
+    </div>
+    <div class="p-4 border-t border-white/5">
+      <form method="get" action="/cdn-cgi/access/logout">
+        <button type="submit" class="w-full px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-200">Sign out</button>
+      </form>
+    </div>
+  </aside>
+
+  <div id="pane" class="flex-1 flex flex-col h-full overflow-hidden">
+    <header class="h-16 border-b border-white/5 px-4 md:px-8 flex items-center gap-3 shrink-0 bg-slate-950/30 backdrop-blur-xl">
+      <button type="button" id="navToggle" onclick="toggleNav(true)" class="md:hidden -ml-2 p-2 rounded-lg text-slate-300 hover:bg-slate-800" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <div class="min-w-0">
+        <h1 class="text-lg md:text-xl font-bold text-slate-100 truncate">Twelve Days of Christmas</h1>
+        <p class="text-xs text-slate-400">Holiday page · spin the wheel or pick a day</p>
+      </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto p-4 md:p-8">
+      <div class="max-w-4xl mx-auto grid gap-5 md:grid-cols-2">
+
+        <section class="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 md:p-6 flex flex-col items-center gap-4" aria-label="Wheel of the twelve days">
+          <div class="relative w-full max-w-sm">
+            <!-- Pointer at the top of the wheel: the day under it is the one shown. -->
+            <svg viewBox="-120 -120 240 240" class="w-full h-auto block" role="group" aria-label="Wheel of the twelve days. Choose a day to bring it to the top.">
+              <g id="wheel"></g>
+              <polygon points="-9,-118 9,-118 0,-102" fill="#f0d080" stroke="#0f1512" stroke-width="2" aria-hidden="true"></polygon>
+              <circle r="20" fill="#0f1512" stroke="#bd8c32" stroke-width="2" aria-hidden="true"></circle>
+              <text x="0" y="0" text-anchor="middle" dominant-baseline="central" font-size="9" font-weight="700" fill="#f5f1e6" aria-hidden="true">12 days</text>
+            </svg>
+          </div>
+          <div class="flex flex-wrap justify-center gap-2">
+            <button type="button" id="spin" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-sm font-semibold text-slate-100">Spin the wheel</button>
+            <button type="button" id="todayBtn" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-sm text-slate-200">Today</button>
+          </div>
+        </section>
+
+        <section class="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5 md:p-6 space-y-4 self-start" aria-live="polite">
+          <div>
+            <p id="dayEyebrow" class="text-xs uppercase tracking-wider text-brand-400">Day 1 of 12</p>
+            <h2 id="dayTitle" class="text-xl font-semibold text-slate-100 mt-1">Partridge in a pear tree</h2>
+          </div>
+          <p id="verse" class="text-base leading-relaxed text-slate-200"></p>
+          <p id="total" class="text-sm text-slate-400"></p>
+          <p id="todayNote" class="text-sm text-slate-300"></p>
+        </section>
+
+        <section class="md:col-span-2 text-xs text-slate-500 space-y-1">
+          <p>The traditional carol and gift list. The twelve days run from December 25 to January 5, counted by the Denver date, the same as the Christmas countdown.</p>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  window.toggleNav = open => {
+    $('sidebar').classList.toggle('-translate-x-full', !open);
+    $('navBackdrop').classList.toggle('hidden', !open);
+    $('navToggle').setAttribute('aria-expanded', String(open));
+  };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') window.toggleNav(false); });
+
+  // The traditional gifts, one per day. Day n's verse lists days n down to 1.
+  const GIFTS = ['a partridge in a pear tree', 'two turtle doves', 'three French hens', 'four calling birds',
+    'five gold rings', 'six geese a-laying', 'seven swans a-swimming', 'eight maids a-milking',
+    'nine ladies dancing', 'ten lords a-leaping', 'eleven pipers piping', 'twelve drummers drumming'];
+  const SHORT = ['Partridge in a pear tree', 'Turtle doves', 'French hens', 'Calling birds', 'Gold rings', 'Geese a-laying',
+    'Swans a-swimming', 'Maids a-milking', 'Ladies dancing', 'Lords a-leaping', 'Pipers piping', 'Drummers drumming'];
+  const ORDINALS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth'];
+
+  // Denver calendar date, as on the other holiday pages. Day 1 is December 25, day 12 is January 5.
+  const [y, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver' }).format(new Date()).split('-').map(Number);
+  let todayDay = 0;
+  if (m === 12 && d >= 25) todayDay = d - 24;
+  else if (m === 1 && d <= 5) todayDay = 7 + d;
+
+  // Wheel geometry: day n's wedge spans 30 degrees, starting at the top (-90) and running clockwise.
+  const RADIUS = 100, LABEL_RADIUS = 64, SVG_NS = 'http://www.w3.org/2000/svg';
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const wheel = $('wheel');
+  const pointAt = (r, deg) => [r * Math.cos(deg * Math.PI / 180), r * Math.sin(deg * Math.PI / 180)];
+  const makeEl = (name, attrs) => {
+    const el = document.createElementNS(SVG_NS, name);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  };
+
+  for (let n = 1; n <= 12; n++) {
+    const start = -90 + (n - 1) * 30, end = start + 30, mid = start + 15;
+    const [x0, y0] = pointAt(RADIUS, start), [x1, y1] = pointAt(RADIUS, end), [lx, ly] = pointAt(LABEL_RADIUS, mid);
+    const group = makeEl('g', { class: 'wedge', role: 'button', tabindex: '0', 'data-day': n, 'aria-pressed': 'false',
+      'aria-label': `Day ${n}: ${SHORT[n - 1]}` });
+    group.appendChild(makeEl('path', { d: `M0 0 L${x0} ${y0} A${RADIUS} ${RADIUS} 0 0 1 ${x1} ${y1} Z`,
+      fill: n % 2 ? '#2f6b4a' : '#24553b', stroke: '#bd8c32', 'stroke-width': '1' }));
+    const label = makeEl('text', { x: lx, y: ly, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+      'font-size': '15', 'font-weight': '700', fill: '#f5f1e6', 'pointer-events': 'none' });
+    label.textContent = n;
+    group.appendChild(label);
+    group.addEventListener('click', () => select(n));
+    group.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(n); }
+    });
+    wheel.appendChild(group);
+  }
+
+  // The wheel's rotation in degrees. Turning to day n rotates it so that day's centre sits under the pointer.
+  let angle = 0;
+  const turnTo = (n, extraTurns) => {
+    const target = (0.5 - n) * 30;   // day n's centre is at -90 + (n - 0.5) * 30 before rotation
+    const forward = ((target - angle) % 360 + 360) % 360;
+    angle += forward + extraTurns * 360;
+    wheel.style.transform = `rotate(${angle}deg)`;
+  };
+
+  let selected = 0;
+  const renderDetail = n => {
+    const parts = [];
+    for (let k = n; k >= 1; k--) parts.push(GIFTS[k - 1]);
+    const verse = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')}, and ${parts[parts.length - 1]}`;
+    $('dayEyebrow').textContent = `Day ${n} of 12`;
+    $('dayTitle').textContent = SHORT[n - 1];
+    $('verse').textContent = `On the ${ORDINALS[n - 1]} day of Christmas, my true love gave to me: ${verse}.`;
+    const gifts = n * (n + 1) / 2;
+    $('total').textContent = `${gifts} gift${gifts === 1 ? '' : 's'} in all by the end of day ${n}.`;
+  };
+
+  const select = (n, extraTurns = 0) => {
+    selected = n;
+    wheel.querySelectorAll('.wedge').forEach(w => w.setAttribute('aria-pressed', String(Number(w.dataset.day) === n)));
+    turnTo(n, extraTurns);
+    renderDetail(n);
+  };
+
+  // Today's note: inside the window, show today; outside it, say when the twelve days start or ended.
+  const daysToStart = Math.round((Date.UTC(y, 11, 25) - Date.UTC(y, m - 1, d)) / 86400000);
+  if (todayDay) {
+    $('todayNote').textContent = `Today is day ${todayDay} of the twelve days.`;
+  } else if (daysToStart > 0) {
+    $('todayNote').textContent = `The twelve days start on December 25, in ${daysToStart} day${daysToStart === 1 ? '' : 's'}.`;
+  } else {
+    $('todayNote').textContent = 'The twelve days run from December 25 to January 5.';
+  }
+  $('todayBtn').disabled = !todayDay;
+  $('todayBtn').addEventListener('click', () => select(todayDay));
+  $('spin').addEventListener('click', () => {
+    // A few full turns, then a random day under the pointer. Reduced motion skips the extra turns.
+    const n = 1 + Math.floor(Math.random() * 12);
+    select(n, reduceMotion ? 0 : 3);
+  });
+
+  // Start on today's day (or day 1) without animating the first turn, then switch the transition on.
+  wheel.style.transition = 'none';
+  select(todayDay || 1);
+  void wheel.getBoundingClientRect();
+  wheel.style.transition = reduceMotion ? 'none' : 'transform 900ms cubic-bezier(.2,.7,.2,1)';
+})();
+</script>
+</body>
+</html>

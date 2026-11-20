@@ -1,0 +1,27 @@
+[
+  {
+    "file": "graphics/santa-dr-troy.png",
+    "width": 1188,
+    "height": 1324
+  },
+  {
+    "file": "graphics/advent-calendar.png",
+    "width": 1188,
+    "height": 1324
+  },
+  {
+    "file": "graphics/launch-post.png",
+    "width": 1254,
+    "height": 1254
+  },
+  {
+    "file": "graphics/daily-tip-template.png",
+    "width": 941,
+    "height": 1672
+  },
+  {
+    "file": "graphics/christmas-greeting.png",
+    "width": 1254,
+    "height": 1254
+  }
+]

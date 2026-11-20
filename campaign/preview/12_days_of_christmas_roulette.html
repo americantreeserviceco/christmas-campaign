@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>12 Days of Christmas - Festive Prize Wheel</title>
+    <!-- Self-hosted styles, icons, fonts and confetti (no external CDN) -->
+    <link rel="stylesheet" href="game-assets/games.tailwind.css">
+    <link rel="stylesheet" href="game-assets/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="game-assets/fonts.css">
+    <script src="game-assets/confetti.browser.js"></script>
+
+    <style>
+        .font-holiday {
+            font-family: 'Mountains of Christmas', cursive;
+        }
+        .font-body {
+            font-family: 'Nunito', sans-serif;
+        }
+        /* Custom scrollbar for prize lists */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(220, 38, 38, 0.6);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(220, 38, 38, 0.9);
+        }
+        /* Glowing neon-like border for Christmas vibe */
+        .glow-gold {
+            box-shadow: 0 0 20px rgba(234, 179, 8, 0.5);
+        }
+        .glow-red {
+            box-shadow: 0 0 25px rgba(220, 38, 38, 0.6);
+        }
+    </style>
+</head>
+<body class="h-full bg-slate-950 text-slate-100 font-body overflow-x-hidden selection:bg-red-600 selection:text-white">
+    <!-- Snow Canvas Background -->
+    <canvas id="snow-canvas" class="fixed inset-0 pointer-events-none z-0"></canvas>
+
+    <div class="relative z-10 min-h-screen flex flex-col justify-between max-w-7xl mx-auto px-4 py-6">
+
+        <!-- Header -->
+        <header class="text-center mb-6">
+            <div class="inline-flex items-center justify-center space-x-3 mb-2">
+                <i class="fa-solid fa-holly-berry text-red-500 text-3xl"></i>
+                <h1 class="font-holiday text-4xl sm:text-6xl font-bold text-amber-300 drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] tracking-wide">
+                    12 Days of Christmas
+                </h1>
+                <i class="fa-solid fa-holly-berry text-red-500 text-3xl"></i>
+            </div>
+            <p class="text-emerald-300 font-medium text-base sm:text-lg max-w-xl mx-auto">
+                Spin the festive roulette wheel to earn points, stack streak multipliers, and redeem holiday rewards!
+            </p>
+
+            <!-- Total Points Scoreboard & Streak Banner -->
+            <div class="mt-4 flex flex-wrap items-center justify-center gap-4">
+                <div class="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-slate-950 px-6 py-2.5 rounded-full shadow-lg font-extrabold flex items-center gap-3 border-2 border-amber-200 glow-gold">
+                    <i class="fa-solid fa-coins text-2xl text-slate-900"></i>
+                    <div class="text-left leading-none">
+                        <div class="text-[10px] uppercase tracking-wider text-slate-900/80 font-bold">Total Points</div>
+                        <div id="total-points-display" class="text-2xl sm:text-3xl font-black">0</div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/90 border border-emerald-500/50 px-5 py-2.5 rounded-full shadow-lg font-bold flex items-center gap-2.5">
+                    <i class="fa-solid fa-fire-flame-curved text-orange-400 text-xl animate-pulse"></i>
+                    <div class="text-left leading-none">
+                        <div class="text-[10px] uppercase tracking-wider text-slate-400">Streak Multiplier</div>
+                        <div class="text-lg font-extrabold text-emerald-400"><span id="streak-count">0</span>x <span class="text-xs font-normal text-slate-300">(<span id="multiplier-val">1.0</span>x Pts)</span></div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Grid -->
+        <main class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start my-auto">
+
+            <!-- Left Panel: Rewards Store & Inventory -->
+            <section class="lg:col-span-4 bg-slate-900/80 backdrop-blur-md p-5 rounded-2xl border border-emerald-800/50 shadow-xl order-2 lg:order-1">
+                <!-- Navigation Tabs -->
+                <div class="flex border-b border-slate-700/60 mb-4 gap-2">
+                    <button id="tab-shop-btn" class="flex-1 py-2 text-sm font-bold text-amber-400 border-b-2 border-amber-400 flex items-center justify-center gap-1.5 transition">
+                        <i class="fa-solid fa-store text-emerald-400"></i> Rewards Shop
+                    </button>
+                    <button id="tab-inv-btn" class="flex-1 py-2 text-sm font-bold text-slate-400 border-b-2 border-transparent hover:text-slate-200 flex items-center justify-center gap-1.5 transition">
+                        <i class="fa-solid fa-trophy text-amber-400"></i> Inventory (<span id="inventory-count">0</span>)
+                    </button>
+                </div>
+
+                <!-- Rewards Shop View -->
+                <div id="shop-view" class="space-y-2.5 max-h-[440px] overflow-y-auto pr-1">
+                    <!-- Dynamic rendering of store items -->
+                </div>
+
+                <!-- Inventory View -->
+                <div id="inventory-view" class="hidden space-y-2.5 max-h-[440px] overflow-y-auto pr-1">
+                    <!-- Dynamic rendering of redeemed items -->
+                </div>
+            </section>
+
+            <!-- Center Panel: The Roulette Wheel -->
+            <section class="lg:col-span-8 flex flex-col items-center justify-center order-1 lg:order-2 relative">
+
+                <!-- Floating +Points Notification Overlay -->
+                <div id="floating-pts" class="pointer-events-none absolute top-10 z-40 text-4xl sm:text-5xl font-black text-amber-300 drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)] opacity-0 transform translate-y-4 transition-all duration-700">
+                    +0 PTS
+                </div>
+
+                <div class="relative flex flex-col items-center">
+
+                    <!-- Wheel Top Pointer/Ticker -->
+                    <div class="absolute -top-5 z-30 flex flex-col items-center filter drop-shadow-[0_4px_6px_rgba(0,0,0,0.7)]">
+                        <div class="w-8 h-10 bg-gradient-to-b from-amber-300 to-amber-500 clip-pointer rounded-t-sm border-2 border-amber-200 flex items-center justify-center">
+                            <i class="fa-solid fa-caret-down text-red-700 text-xl mt-[-2px]"></i>
+                        </div>
+                    </div>
+
+                    <!-- Canvas Wheel Container -->
+                    <div class="relative p-3 bg-gradient-to-tr from-amber-600 via-amber-400 to-amber-700 rounded-full glow-gold border-4 border-amber-300/60 shadow-2xl">
+                        <!-- Outer Decorative Frame Lights -->
+                        <div class="w-[340px] h-[340px] sm:w-[460px] sm:h-[460px] relative rounded-full flex items-center justify-center bg-slate-900 border-4 border-emerald-950 overflow-hidden">
+                            <canvas id="wheel-canvas" width="460" height="460" class="w-full h-full cursor-pointer"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Spin Controls -->
+                    <div class="mt-6 flex items-center gap-4">
+                        <button id="spin-btn" class="relative group bg-gradient-to-r from-red-600 via-red-500 to-emerald-600 hover:from-red-500 hover:to-emerald-500 text-white font-bold text-xl sm:text-2xl py-3.5 px-10 rounded-full shadow-lg glow-red transform active:scale-95 transition duration-150 border-2 border-amber-300/70">
+                            <span class="flex items-center gap-2">
+                                <i class="fa-solid fa-dharmachakra animate-spin-slow"></i> SPIN WHEEL
+                            </span>
+                        </button>
+
+                        <button id="sound-toggle-btn" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-amber-300 w-12 h-12 rounded-full flex items-center justify-center shadow-md transition" title="Toggle Sound">
+                            <i id="sound-icon" class="fa-solid fa-volume-high text-lg"></i>
+                        </button>
+                    </div>
+
+                </div>
+
+            </section>
+
+        </main>
+
+        <!-- Won Prizes History Drawer / Footer Bar -->
+        <footer class="mt-8 bg-slate-900/90 border border-amber-500/30 rounded-2xl p-4 backdrop-blur-md">
+            <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+                <h3 class="text-lg font-bold text-amber-300 flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Won Prizes & Claims Log
+                </h3>
+                <button id="clear-history-btn" class="text-xs text-slate-400 hover:text-red-400 transition">
+                    Clear History
+                </button>
+            </div>
+            <div id="history-container" class="flex gap-3 overflow-x-auto pb-2 min-h-[64px] items-center">
+                <p id="empty-history-msg" class="text-sm text-slate-500 italic">No prizes claimed yet! Give the Christmas wheel a spin!</p>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Prize Result Modal -->
+    <div id="prize-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 transition-opacity duration-300">
+        <div class="relative bg-gradient-to-b from-slate-900 via-slate-900 to-emerald-950 border-2 border-amber-400 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center shadow-2xl transform scale-90 transition-transform duration-300 glow-gold">
+
+            <!-- Close Button -->
+            <button id="modal-close-btn" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center transition">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="inline-block bg-red-600/20 border border-red-500/50 rounded-full px-4 py-1 text-red-400 font-bold text-sm tracking-wide mb-3">
+                DAY <span id="modal-day-num">1</span> UNLOCKED!
+            </div>
+
+            <!-- Big Icon Display -->
+            <div id="modal-icon-display" class="text-6xl sm:text-7xl my-3 filter drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] transform hover:scale-110 transition duration-200">
+                🎄
+            </div>
+
+            <h3 id="modal-prize-title" class="font-holiday text-3xl sm:text-4xl font-bold text-amber-300 mb-2">
+                A Partridge in a Pear Tree
+            </h3>
+
+            <p id="modal-prize-desc" class="text-slate-300 text-sm sm:text-base mb-6 px-2">
+                On the first day of Christmas, my true love gave to me...
+            </p>
+
+            <div class="flex gap-3">
+                <button id="modal-claim-btn" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition transform active:scale-95 text-base flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-gift"></i> Claim Prize
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pointer CSS Clip Path helper -->
+    <style>
+        .clip-pointer {
+            clip-path: polygon(0% 0%, 100% 0%, 50% 100%);
+        }
+        @keyframes spinSlow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+            animation: spinSlow 12s linear infinite;
+        }
+    </style>
+
+    <script>
+        /**
+         * 12 DAYS OF CHRISTMAS DATA & POINTS STATE
+         */
+        const DEFAULT_DAYS = [
+            { day: 1, title: "Partridge in a Pear Tree", emoji: "🦜", color: "#B91C1C", points: 100, desc: "A peaceful start! Earn 100 festive points.", spinsLeft: Math.floor(Math.random() * 5) + 1 },
+            { day: 2, title: "Two Turtle Doves", emoji: "🕊️", color: "#047857", points: 250, desc: "Double the birds, double the points! 250 Pts.", spinsLeft: Math.floor(Math.random() * 5) + 1 },
+            { day: "SPIN", title: "BONUS SPIN AGAIN!", emoji: "🔄", color: "#7C3AED", points: 500, desc: "LUCKY SPIN! You won 500 Bonus Points and a FREE SPIN AGAIN!", isSpinAgain: true, spinsLeft: "∞" },
+            { day: 3, title: "Three French Hens", emoji: "🐓", color: "#D97706", points: 500, desc: "French chic brings in a sweet 500 Pts boost!", spinsLeft: Math.floor(Math.random() * 5) + 1 },
+            { day: 4, title: "Four Calling Birds", emoji: "🐦", color: "#1D4ED8", points: 750, desc: "Singing high notes for 750 Points!", spinsLeft: Math.floor(Math.random() * 5) + 1 },
+            { day: 5, title: "Five Golden Rings", emoji: "💍", color: "#EAB308", points: 1000, desc: "GOLD! Shiny reward of 1,000 Points!", spinsLeft: Math.floor(Math.random() * 5) + 1 },
+            { day: 6, title: "Six Geese a-Laying", emoji: "🪿", color: "#0D9488", points: 1200, desc: "Laying fresh golden points: 1,200 Pts!", spinsLeft: Math.floor(Math.random() * 5) + 1 },
+            { day: "SPIN", title: "BONUS SPIN AGAIN!", emoji: "🎁", color: "#EC4899", points: 1000, desc: "HOLIDAY MAGIC! Take 1,000 Pts and SPIN AGAIN instantly!", isSpinAgain: true, spinsLeft: "∞" },
+            { day: 7, title: "Seven Swans a-Swimming", emoji: "🦢", color: "#6D28D9", points: 1500, desc: "Graceful elegance delivering 1,500 Pts!", spinsLeft: Math.floor(Math.random() * 5) + 1 },
+            { day: 8, title: "Eight Maids a-Milking", emoji: "🥛", color: "#C026D3", points: 2000, desc: "Cozy hot chocolate power: 2,000 Pts!", spinsLeft: Math.floor(Math.random() * 5) + 1 },
+            { day: 9, title: "Nine Ladies Dancing", emoji: "💃", color: "#BE123C", points: 2500, desc: "Dancing into victory with 2,500 Pts!", spinsLeft: Math.floor(Math.random() * 5) + 1 },
+            { day: 10, title: "Ten Lords a-Leaping", emoji: "🕺", color: "#0369A1", points: 3000, desc: "Leaping straight to 3,000 Points!", spinsLeft: Math.floor(Math.random() * 5) + 1 },
+            { day: 11, title: "Eleven Pipers Piping", emoji: "🎺", color: "#15803D", points: 5000, desc: "Grand holiday melody for 5,000 Pts!", spinsLeft: Math.floor(Math.random() * 5) + 1 },
+            { day: 12, title: "Twelve Drummers Drumming", emoji: "🥁", color: "#A16207", points: 10000, desc: "JACKPOT! The 12th Day drums up 10,000 Pts!", spinsLeft: Math.floor(Math.random() * 5) + 1 }
+        ];
+
+        const SHOP_ITEMS = [
+            { id: "item_pear", title: "Golden Pear Tree", emoji: "🌳", cost: 500, desc: "A glowing ornament for your collection." },
+            { id: "item_dove", title: "Turtle Dove Badge", emoji: "🕊️", cost: 1500, desc: "Symbol of holiday friendship." },
+            { id: "item_cocoa", title: "Infinite Hot Cocoa", emoji: "☕", cost: 3000, desc: "Never runs out of marshmallows!" },
+            { id: "item_rings", title: "Golden Rings Trophy", emoji: "🏆", cost: 5000, desc: "Shimmering gold trophy for your mantle." },
+            { id: "item_sleigh", title: "Santa's Flying Sleigh", emoji: "🛷", cost: 10000, desc: "Magical high-speed winter sleigh." },
+            { id: "item_crown", title: "North Pole Crown", emoji: "👑", cost: 25000, desc: "Become the ultimate Holiday Legend." }
+        ];
+
+        let prizes = [...DEFAULT_DAYS];
+        let totalPoints = parseInt(localStorage.getItem('christmas_points')) || 0;
+        let streak = parseInt(localStorage.getItem('christmas_streak')) || 0;
+        let inventory = JSON.parse(localStorage.getItem('christmas_inventory')) || [];
+        let claimedHistory = JSON.parse(localStorage.getItem('christmas_history_12')) || [];
+        let audioEnabled = true;
+
+        // Calculate current multiplier from streak
+        function getMultiplier() {
+            return parseFloat((1 + Math.min(streak, 10) * 0.1).toFixed(1));
+        }
+
+        /**
+         * WEB AUDIO SYNTHESIZER (Ticking sound & Victory Fanfare)
+         */
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // Ticking sound for wheel rotation
+        function playTickSound() {
+            if (!audioEnabled) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.04);
+
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.04);
+            } catch (e) {
+                // Audio context error fallback
+            }
+        }
+
+        // Festive Fanfare tune on winning a prize
+        function playVictorySound() {
+            if (!audioEnabled) return;
+            try {
+                initAudio();
+                const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99]; // C4, E4, G4, C5, E5, G5
+                notes.forEach((freq, index) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    const startTime = audioCtx.currentTime + (index * 0.08);
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, startTime);
+
+                    gain.gain.setValueAtTime(0, startTime);
+                    gain.gain.linearRampToValueAtTime(0.2, startTime + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.25);
+                });
+            } catch (e) {
+                // Audio context error fallback
+            }
+        }
+
+        /**
+         * CANVAS ROULETTE WHEEL RENDERING
+         */
+        const canvas = document.getElementById('wheel-canvas');
+        const ctx = canvas.getContext('2d');
+        let currentAngle = 0;
+        let isSpinning = false;
+
+        function drawWheel() {
+            const width = canvas.width;
+            const height = canvas.height;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const radius = width / 2 - 12;
+
+            ctx.clearRect(0, 0, width, height);
+
+            const numSlices = prizes.length;
+            const sliceAngle = (Math.PI * 2) / numSlices;
+
+            // Draw Slices
+            for (let i = 0; i < numSlices; i++) {
+                const angle = currentAngle + i * sliceAngle;
+                const prize = prizes[i];
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, angle, angle + sliceAngle);
+                ctx.closePath();
+
+                ctx.fillStyle = prize.color;
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = "#FDE047";
+                ctx.stroke();
+
+                // Text & Icon alignment inside slices
+                ctx.translate(centerX, centerY);
+                ctx.rotate(angle + sliceAngle / 2);
+                ctx.textAlign = "right";
+
+                // Prize Text & Counter
+                ctx.fillStyle = "#FFFFFF";
+                ctx.font = "bold 12px Nunito, sans-serif";
+
+                ctx.shadowColor = "rgba(0,0,0,0.8)";
+                ctx.shadowBlur = 4;
+
+                const spinCountLabel = prize.isSpinAgain ? "SPIN AGAIN" : `(${prize.spinsLeft}x)`;
+                ctx.fillText(`${prize.emoji} ${prize.points} Pts ${spinCountLabel}`, radius - 12, 0);
+
+                ctx.restore();
+            }
+
+            // Draw Inner Hub / Decorative Center
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.beginPath();
+            ctx.arc(0, 0, 45, 0, Math.PI * 2);
+            ctx.fillStyle = "#0F172A";
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = "#FDE047";
+            ctx.stroke();
+
+            // Center Christmas Tree Icon
+            ctx.fillStyle = "#22C55E";
+            ctx.font = "26px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("🎄", 0, 0);
+
+            ctx.restore();
+        }
+
+        /**
+         * PHYSICS-BASED SPINNING LOGIC
+         */
+        let spinVelocity = 0;
+        let friction = 0.985;
+        let lastSegmentIndex = -1;
+
+        function spinWheel() {
+            if (isSpinning) return;
+
+            initAudio();
+            isSpinning = true;
+            document.getElementById('spin-btn').disabled = true;
+            document.getElementById('spin-btn').classList.add('opacity-75', 'cursor-not-allowed');
+
+            // Increment streak
+            streak++;
+            localStorage.setItem('christmas_streak', streak);
+            updateScoreboard();
+
+            // Determine slice outcome
+            const numSlices = prizes.length;
+            const sliceAngle = (Math.PI * 2) / numSlices;
+            const wonPrizeIndex = Math.floor(Math.random() * numSlices);
+
+            const targetSliceCenter = wonPrizeIndex * sliceAngle + sliceAngle / 2;
+            let desiredFinalAngle = (Math.PI * 1.5) - targetSliceCenter;
+
+            while (desiredFinalAngle < 0) desiredFinalAngle += Math.PI * 2;
+            const extraRotations = (Math.floor(Math.random() * 4) + 6) * (Math.PI * 2);
+            const totalRotationNeeded = extraRotations + (desiredFinalAngle - (currentAngle % (Math.PI * 2)));
+
+            spinVelocity = Math.sqrt(2 * 0.0015 * totalRotationNeeded);
+
+            animateSpin();
+        }
+
+        function animateSpin() {
+            if (!isSpinning) return;
+
+            currentAngle += spinVelocity;
+            spinVelocity *= friction;
+
+            const numSlices = prizes.length;
+            const sliceAngle = (Math.PI * 2) / numSlices;
+            const normalizedAngle = (Math.PI * 1.5 - currentAngle) % (Math.PI * 2);
+            const positiveAngle = normalizedAngle < 0 ? normalizedAngle + Math.PI * 2 : normalizedAngle;
+            const currentSegment = Math.floor(positiveAngle / sliceAngle);
+
+            if (currentSegment !== lastSegmentIndex) {
+                playTickSound();
+                lastSegmentIndex = currentSegment;
+            }
+
+            drawWheel();
+
+            if (spinVelocity < 0.002) {
+                spinVelocity = 0;
+                isSpinning = false;
+                document.getElementById('spin-btn').disabled = false;
+                document.getElementById('spin-btn').classList.remove('opacity-75', 'cursor-not-allowed');
+
+                const finalSegment = currentSegment % numSlices;
+                const winningPrize = prizes[finalSegment];
+
+                onWinPrize(winningPrize);
+            } else {
+                requestAnimationFrame(animateSpin);
+            }
+        }
+
+        /**
+         * MODAL CONTROLS
+         */
+        function closeModal() {
+            const modal = document.getElementById('prize-modal');
+            if (!modal) return;
+            const modalCard = modal.querySelector('div');
+            modal.classList.add('opacity-0');
+            if (modalCard) {
+                modalCard.classList.remove('scale-100');
+                modalCard.classList.add('scale-90');
+            }
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        /**
+         * PRIZE WINNING & POINTS CALCULATION
+         */
+        function onWinPrize(prize) {
+            const mult = getMultiplier();
+            const earnedPts = Math.round(prize.points * mult);
+            totalPoints += earnedPts;
+            localStorage.setItem('christmas_points', totalPoints);
+
+            // Update spin counter for day items
+            if (!prize.isSpinAgain && typeof prize.spinsLeft === 'number') {
+                prize.spinsLeft--;
+                if (prize.spinsLeft <= 0) {
+                    // Replenish counter randomly once depleted
+                    prize.spinsLeft = Math.floor(Math.random() * 6) + 2;
+                }
+            }
+            drawWheel();
+
+            updateScoreboard();
+            showFloatingPoints(earnedPts);
+            playVictorySound();
+            triggerConfetti();
+
+            // Populate Modal
+            document.getElementById('modal-day-num').innerText = prize.isSpinAgain ? "BONUS SPIN" : `DAY ${prize.day}`;
+            document.getElementById('modal-icon-display').innerText = prize.emoji;
+            document.getElementById('modal-prize-title').innerText = `${prize.title} (+${earnedPts.toLocaleString()} Pts)`;
+            document.getElementById('modal-prize-desc').innerText = prize.isSpinAgain
+                ? `${prize.desc} (Multiplier: ${mult}x)`
+                : `${prize.desc} (Base: ${prize.points} Pts × ${mult}x Multiplier • ${prize.spinsLeft} Spins Left for Day ${prize.day})`;
+
+            // Show Modal
+            const modal = document.getElementById('prize-modal');
+            const modalCard = modal.querySelector('div');
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalCard.classList.remove('scale-90');
+                modalCard.classList.add('scale-100');
+            }, 10);
+
+            // Auto spin again if landed on "Spin Again!"
+            if (prize.isSpinAgain) {
+                const claimBtn = document.getElementById('modal-claim-btn');
+                claimBtn.innerHTML = `<i class="fa-solid fa-rotate-right animate-spin"></i> Spin Again Now!`;
+                claimBtn.onclick = () => {
+                    closeModal();
+                    setTimeout(spinWheel, 300);
+                };
+            } else {
+                const claimBtn = document.getElementById('modal-claim-btn');
+                claimBtn.innerHTML = `<i class="fa-solid fa-gift"></i> Claim Prize`;
+                claimBtn.onclick = closeModal;
+            }
+
+            addHistoryItem(prize, earnedPts);
+        }
+
+        function showFloatingPoints(pts) {
+            const el = document.getElementById('floating-pts');
+            el.innerText = `+${pts.toLocaleString()} PTS!`;
+            el.classList.remove('opacity-0', 'translate-y-4');
+            el.classList.add('opacity-100', '-translate-y-6');
+
+            setTimeout(() => {
+                el.classList.remove('opacity-100', '-translate-y-6');
+                el.classList.add('opacity-0', 'translate-y-4');
+            }, 1500);
+        }
+
+        function updateScoreboard() {
+            document.getElementById('total-points-display').innerText = totalPoints.toLocaleString();
+            document.getElementById('streak-count').innerText = streak;
+            document.getElementById('multiplier-val').innerText = getMultiplier();
+            document.getElementById('inventory-count').innerText = inventory.length;
+            renderShop();
+        }
+
+        function triggerConfetti() {
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#EF4444', '#10B981', '#F59E0B', '#3B82F6', '#FFFFFF']
+                });
+            }
+        }
+
+        /**
+         * HISTORY TRACKING
+         */
+        function addHistoryItem(prize, earnedPts) {
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            claimedHistory.unshift({ ...prize, earnedPts, time });
+            localStorage.setItem('christmas_history_12', JSON.stringify(claimedHistory));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('history-container');
+            if (claimedHistory.length === 0) {
+                container.innerHTML = `<p id="empty-history-msg" class="text-sm text-slate-500 italic">No prizes claimed yet! Give the Christmas wheel a spin!</p>`;
+                return;
+            }
+
+            container.innerHTML = claimedHistory.map(item => `
+                <div class="flex-shrink-0 bg-slate-800/90 border border-emerald-600/40 rounded-xl px-3 py-2 flex items-center gap-2 shadow-sm animate-fade-in">
+                    <span class="text-2xl">${item.emoji}</span>
+                    <div class="text-left">
+                        <div class="text-xs font-bold text-amber-300">${item.isSpinAgain ? 'Spin Again!' : 'Day ' + item.day}: +${item.earnedPts.toLocaleString()} Pts</div>
+                        <div class="text-[10px] text-slate-400">${item.title} • ${item.time}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        /**
+         * SHOP & INVENTORY
+         */
+        function renderShop() {
+            const container = document.getElementById('shop-view');
+            container.innerHTML = SHOP_ITEMS.map(item => {
+                const isOwned = inventory.some(i => i.id === item.id);
+                const canAfford = totalPoints >= item.cost;
+
+                return `
+                    <div class="p-3 rounded-xl bg-slate-800/70 border ${isOwned ? 'border-emerald-600/50 bg-emerald-950/20' : 'border-slate-700/60'} flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl">${item.emoji}</span>
+                            <div>
+                                <div class="text-sm font-bold text-slate-100">${item.title}</div>
+                                <div class="text-xs text-slate-400">${item.desc}</div>
+                                <div class="text-xs font-extrabold text-amber-400 mt-0.5"><i class="fa-solid fa-coins text-[10px]"></i> ${item.cost.toLocaleString()} Pts</div>
+                            </div>
+                        </div>
+                        ${isOwned
+                            ? `<span class="text-xs bg-emerald-700/50 text-emerald-300 font-bold px-2.5 py-1 rounded-lg border border-emerald-500/40"><i class="fa-solid fa-check mr-1"></i> Owned</span>`
+                            : `<button onclick="buyShopItem('${item.id}')" ${!canAfford ? 'disabled' : ''} class="text-xs font-bold py-1.5 px-3 rounded-xl transition ${canAfford ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md cursor-pointer' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}">
+                                Redeem
+                               </button>`
+                        }
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function buyShopItem(itemId) {
+            const item = SHOP_ITEMS.find(i => i.id === itemId);
+            if (!item || totalPoints < item.cost || inventory.some(i => i.id === itemId)) return;
+
+            totalPoints -= item.cost;
+            inventory.push({ ...item, redeemedAt: new Date().toLocaleDateString() });
+
+            localStorage.setItem('christmas_points', totalPoints);
+            localStorage.setItem('christmas_inventory', JSON.stringify(inventory));
+
+            updateScoreboard();
+            renderInventory();
+            triggerConfetti();
+        }
+
+        function renderInventory() {
+            const container = document.getElementById('inventory-view');
+            if (inventory.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-slate-500 text-sm">Your inventory is empty.<br>Earn points from the wheel to redeem rewards!</div>`;
+                return;
+            }
+
+            container.innerHTML = inventory.map(item => `
+                <div class="p-3 rounded-xl bg-slate-800/80 border border-amber-500/30 flex items-center gap-3">
+                    <span class="text-3xl">${item.emoji}</span>
+                    <div>
+                        <div class="text-sm font-bold text-amber-300">${item.title}</div>
+                        <div class="text-xs text-slate-400">${item.desc}</div>
+                        <div class="text-[10px] text-emerald-400 mt-0.5">Unlocked on ${item.redeemedAt}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        /**
+         * BACKGROUND SNOW ANIMATION
+         */
+        function initSnow() {
+            const snowCanvas = document.getElementById('snow-canvas');
+            const sCtx = snowCanvas.getContext('2d');
+
+            function resize() {
+                snowCanvas.width = window.innerWidth;
+                snowCanvas.height = window.innerHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            const flakes = Array.from({ length: 60 }, () => ({
+                x: Math.random() * snowCanvas.width,
+                y: Math.random() * snowCanvas.height,
+                radius: Math.random() * 3 + 1,
+                density: Math.random() * 1 + 0.5,
+                opacity: Math.random() * 0.7 + 0.3
+            }));
+
+            function drawFlakes() {
+                sCtx.clearRect(0, 0, snowCanvas.width, snowCanvas.height);
+                sCtx.fillStyle = "rgba(255, 255, 255, 0.8)";
+                sCtx.beginPath();
+
+                flakes.forEach(f => {
+                    sCtx.moveTo(f.x, f.y);
+                    sCtx.arc(f.x, f.y, f.radius, 0, Math.PI * 2, true);
+
+                    // Update positions
+                    f.y += Math.cos(f.density) + 1 + f.radius / 2;
+                    f.x += Math.sin(f.density) * 0.5;
+
+                    if (f.y > snowCanvas.height) {
+                        f.y = -10;
+                        f.x = Math.random() * snowCanvas.width;
+                    }
+                });
+                sCtx.fill();
+                requestAnimationFrame(drawFlakes);
+            }
+            drawFlakes();
+        }
+
+        /**
+         * EVENT LISTENERS & INITIALIZATION
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            drawWheel();
+            updateScoreboard();
+            renderInventory();
+            renderHistory();
+            initSnow();
+
+            // Wheel Spin Trigger
+            document.getElementById('spin-btn').addEventListener('click', spinWheel);
+            canvas.addEventListener('click', spinWheel);
+
+            // Tab Switching Logic
+            const shopBtn = document.getElementById('tab-shop-btn');
+            const invBtn = document.getElementById('tab-inv-btn');
+            const shopView = document.getElementById('shop-view');
+            const invView = document.getElementById('inventory-view');
+
+            shopBtn.addEventListener('click', () => {
+                shopView.classList.remove('hidden');
+                invView.classList.add('hidden');
+                shopBtn.className = "flex-1 py-2 text-sm font-bold text-amber-400 border-b-2 border-amber-400 flex items-center justify-center gap-1.5 transition";
+                invBtn.className = "flex-1 py-2 text-sm font-bold text-slate-400 border-b-2 border-transparent hover:text-slate-200 flex items-center justify-center gap-1.5 transition";
+            });
+
+            invBtn.addEventListener('click', () => {
+                invView.classList.remove('hidden');
+                shopView.classList.add('hidden');
+                invBtn.className = "flex-1 py-2 text-sm font-bold text-amber-400 border-b-2 border-amber-400 flex items-center justify-center gap-1.5 transition";
+                shopBtn.className = "flex-1 py-2 text-sm font-bold text-slate-400 border-b-2 border-transparent hover:text-slate-200 flex items-center justify-center gap-1.5 transition";
+                renderInventory();
+            });
+
+            // Toggle Sound
+            const soundBtn = document.getElementById('sound-toggle-btn');
+            const soundIcon = document.getElementById('sound-icon');
+            soundBtn.addEventListener('click', () => {
+                audioEnabled = !audioEnabled;
+                soundIcon.className = audioEnabled ? 'fa-solid fa-volume-high text-lg' : 'fa-solid fa-volume-xmark text-lg text-red-400';
+            });
+
+            // Modal Controls
+            document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+            document.getElementById('modal-claim-btn').addEventListener('click', closeModal);
+
+            // Clear History
+            document.getElementById('clear-history-btn').addEventListener('click', () => {
+                claimedHistory = [];
+                localStorage.removeItem('christmas_history_12');
+                renderHistory();
+            });
+        });
+    </script>
+</body>
+</html>

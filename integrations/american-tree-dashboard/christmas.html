@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- iPhone: opens full screen from the home screen (same setup as the other dashboard pages). -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="American Tree" />
+  <meta name="theme-color" content="#070f0c" />
+  <meta name="format-detection" content="telephone=no" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="robots" content="noindex" />
+  <title>Christmas | American Tree Colorado</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script>tailwind.config = { future: { hoverOnlyWhenSupported: true }, theme: { extend: { colors: { brand: { 400: '#b7cf57', 500: '#2f6b4a', 600: '#24553b' } } } } }</script>
+  <link rel="stylesheet" href="glass.css" />
+  <!-- Google Tag Manager: same container as index.html -->
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-MHLKM5PD');</script>
+</head>
+<body class="h-dvh flex overflow-hidden font-sans antialiased text-slate-100">
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MHLKM5PD" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- Sidebar: same navigation as the main dashboard (index.html); tab links open /#tab -->
+  <div id="navBackdrop" onclick="toggleNav(false)" class="fixed inset-0 z-30 bg-black/60 hidden md:hidden"></div>
+  <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-72 max-w-[85vw] -translate-x-full transition-transform duration-200 bg-slate-950/95 md:bg-slate-950/50 backdrop-blur-xl border-r border-white/5 flex flex-col justify-between overflow-y-auto md:static md:w-64 md:translate-x-0 md:shrink-0">
+    <div>
+      <div class="h-16 flex items-center justify-between px-4 border-b border-white/5">
+        <a href="/" class="bg-white rounded-md px-2 py-1"><img src="icons/logo-color.png" alt="American Tree Colorado" class="h-9 w-auto"></a>
+        <button type="button" onclick="toggleNav(false)" class="md:hidden -mr-2 p-2 rounded-lg text-slate-400 hover:bg-slate-800" aria-label="Close menu">✕</button>
+      </div>
+      <nav id="mainNav" data-current="christmas"></nav>
+      <script src="nav.js"></script>
+    </div>
+    <div class="p-4 border-t border-white/5">
+      <form method="get" action="/cdn-cgi/access/logout">
+        <button type="submit" class="w-full px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-200">Sign out</button>
+      </form>
+    </div>
+  </aside>
+
+  <div id="pane" class="flex-1 flex flex-col h-full overflow-hidden">
+    <header class="h-16 border-b border-white/5 px-4 md:px-8 flex items-center gap-3 shrink-0 bg-slate-950/30 backdrop-blur-xl">
+      <button type="button" id="navToggle" onclick="toggleNav(true)" class="md:hidden -ml-2 p-2 rounded-lg text-slate-300 hover:bg-slate-800" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <div class="min-w-0">
+        <h1 class="text-lg md:text-xl font-bold text-slate-100 truncate">Christmas</h1>
+        <p class="text-xs text-slate-400">Holiday page · tree care for the season</p>
+      </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto p-4 md:p-8">
+      <div class="max-w-4xl mx-auto space-y-5">
+
+        <section class="bg-slate-800/50 border border-slate-700/50 rounded-xl overflow-hidden grid md:grid-cols-2">
+          <div class="p-5 md:p-6 flex flex-col justify-center gap-3 order-2 md:order-1">
+            <p class="text-xs uppercase tracking-wider text-brand-400">Countdown</p>
+            <p id="countLine" class="text-2xl md:text-3xl font-bold text-slate-100 tabular-nums">Loading…</p>
+            <p id="dateLine" class="text-sm text-slate-400"></p>
+          </div>
+          <div class="bg-slate-900/40 flex items-end justify-center order-1 md:order-2 pt-4 md:pt-0">
+            <img src="Winter/santa.webp" alt="" width="338" height="420" class="h-48 md:h-56 w-auto">
+          </div>
+        </section>
+
+        <section class="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5 md:p-6 space-y-3">
+          <h2 class="text-lg font-semibold text-slate-100">Cut trees: keep them drinking</h2>
+          <ul class="list-disc pl-5 space-y-2 text-sm text-slate-300">
+            <li>Make a fresh cut across the base before the tree goes in the stand, and keep the stand filled with water.</li>
+            <li>Set the tree away from radiators, heat vents, fireplaces, TV sets and direct sun. A well-watered tree dries out more slowly.</li>
+            <li>Choose small lights. They run cooler than large bulbs.</li>
+          </ul>
+          <p class="text-sm text-slate-400">A well-watered tree is far less likely to catch fire than one with dry needles, according to the Colorado State Forest Service.</p>
+        </section>
+
+        <section class="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5 md:p-6 space-y-3">
+          <h2 class="text-lg font-semibold text-slate-100">Living trees: after the holidays</h2>
+          <p class="text-sm text-slate-300">A tree in a pot or with a root ball needs water through the winter, the same as any evergreen. The watering rules on the <a class="underline text-brand-400 hover:text-brand-400/80" href="/thanksgiving.html">Thanksgiving page</a> apply: water when the air is above 40°F and the soil is not frozen, and avoid ground covered in snow.</p>
+          <p class="text-sm text-slate-300">For care of a living tree that has been indoors, see the CSU Extension article below.</p>
+        </section>
+
+        <section class="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5 md:p-6 space-y-3">
+          <h2 class="text-lg font-semibold text-slate-100">Next steps</h2>
+          <div class="flex flex-wrap gap-2">
+            <a href="/#health" class="px-3 py-2 rounded-lg bg-brand-600/30 hover:bg-brand-600/50 text-sm text-brand-400">Seasonal Calendar</a>
+            <a href="/#trees" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm text-slate-200">Trees &amp; Pests</a>
+            <a href="/thanksgiving.html" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm text-slate-200">Thanksgiving page</a>
+            <a href="/twelve-days.html" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm text-slate-200">Twelve Days wheel</a>
+          </div>
+        </section>
+
+        <section class="text-xs text-slate-500 space-y-1">
+          <p>Sources: Colorado State University Extension, <a class="underline hover:text-slate-300" href="https://planttalk.colostate.edu/topics/miscellaneous/2017-christmas-trees-care-living-trees" target="_blank" rel="noopener">Christmas trees: caring for living trees (PlantTalk, 2017)</a>; Colorado State Forest Service, <a class="underline hover:text-slate-300" href="https://newsmediarelations.colostate.edu/2010/11/24/colorado-state-forest-service-offers-tips-for-holiday-tree-safety-and-care/" target="_blank" rel="noopener">holiday tree safety and care (2010)</a>.</p>
+          <p>The countdown is calculated from the Denver date. This page does not show office hours or closures.</p>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  window.toggleNav = open => {
+    $('sidebar').classList.toggle('-translate-x-full', !open);
+    $('navBackdrop').classList.toggle('hidden', !open);
+    $('navToggle').setAttribute('aria-expanded', String(open));
+  };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') window.toggleNav(false); });
+
+  // Denver calendar date, so the countdown matches the seasonal banner on the Overview.
+  const [y] = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver' }).format(new Date()).split('-').map(Number);
+  const dayName = new Date(Date.UTC(y, 11, 25)).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+  const pad = n => String(n).padStart(2, '0');
+  // Midnight at the start of December 25 in Denver (MST, UTC-7 in December) is 07:00 UTC.
+  const target = Date.UTC(y, 11, 25, 7);
+
+  $('dateLine').textContent = `Christmas Day is ${dayName}, December 25, ${y}.`;
+
+  // Live countdown, the same format as the seasonal banner. Stops once Christmas arrives.
+  const tick = () => {
+    const ms = target - Date.now();
+    if (ms <= 0) { $('countLine').textContent = "🎄 It's Christmas!"; return false; }
+    const s = Math.floor(ms / 1000);
+    $('countLine').textContent = `🎄 ${Math.floor(s / 86400)}d ${pad(Math.floor(s / 3600) % 24)}h ${pad(Math.floor(s / 60) % 60)}m ${pad(s % 60)}s to Christmas`;
+    return true;
+  };
+  if (tick()) { const t = setInterval(() => { if (!tick()) clearInterval(t); }, 1000); }
+})();
+</script>
+</body>
+</html>

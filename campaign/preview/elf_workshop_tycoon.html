@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Santa's Elf Workshop Tycoon</title>
+    <!-- Self-hosted styles, icons, fonts and confetti (no external CDN) -->
+    <link rel="stylesheet" href="game-assets/games.tailwind.css">
+    <link rel="stylesheet" href="game-assets/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="game-assets/fonts.css">
+    <script src="game-assets/confetti.browser.js"></script>
+
+    <style>
+        .font-holiday { font-family: 'Mountains of Christmas', cursive; }
+        .font-body { font-family: 'Nunito', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.6); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 0.9); }
+        .glow-gold { box-shadow: 0 0 20px rgba(234, 179, 8, 0.4); }
+        .glow-green { box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); }
+        .glow-red { box-shadow: 0 0 20px rgba(220, 38, 38, 0.5); }
+
+        @keyframes floatAnim {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+        .animate-float { animation: floatAnim 3s ease-in-out infinite; }
+
+        /* NEW ANIMATIONS */
+        @keyframes floatUpFade {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-50px) scale(1.3); }
+        }
+        .float-number {
+            position: absolute;
+            pointer-events: none;
+            font-weight: 900;
+            color: #fde047;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            animation: floatUpFade 0.8s ease-out forwards;
+            z-index: 50;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 10px rgba(234, 179, 8, 0.3); }
+            50% { box-shadow: 0 0 22px rgba(234, 179, 8, 0.8); }
+        }
+        .pulse-glow { animation: pulseGlow 2s infinite; }
+
+        @keyframes conveyorMove {
+            0% { background-position: 0 0; }
+            100% { background-position: 30px 0; }
+        }
+        .conveyor-bg {
+            background-image: repeating-linear-gradient(45deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.15) 10px, transparent 10px, transparent 20px);
+            background-size: 30px 30px;
+            animation: conveyorMove 1s linear infinite;
+        }
+
+        @keyframes cardPop {
+            0% { transform: scale(0.95); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-card-pop { animation: cardPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+    </style>
+</head>
+<body class="h-full bg-slate-950 text-slate-100 font-body overflow-x-hidden selection:bg-red-600 selection:text-white">
+    <!-- Snow Canvas Background -->
+    <canvas id="snow-canvas" class="fixed inset-0 pointer-events-none z-0"></canvas>
+
+    <div class="relative z-10 min-h-screen flex flex-col justify-between max-w-7xl mx-auto px-4 py-6">
+
+        <!-- Header & Top Stats -->
+        <header class="text-center mb-6">
+            <div class="inline-flex items-center justify-center space-x-3 mb-1">
+                <i class="fa-solid fa-sleigh text-red-500 text-3xl sm:text-4xl"></i>
+                <h1 class="font-holiday text-4xl sm:text-6xl font-bold text-amber-300 drop-shadow-[0_4px_6px_rgba(0,0,0,0.8)] tracking-wide">
+                    Elf Workshop Tycoon
+                </h1>
+                <i class="fa-solid fa-holly-berry text-emerald-500 text-3xl sm:text-4xl"></i>
+            </div>
+            <p class="text-emerald-300 font-semibold text-sm sm:text-base max-w-xl mx-auto">
+                Hire Elves, Build Toy Production Lines, & Deliver Presents on Christmas Eve!
+            </p>
+
+            <!-- Resources Dashboard Bar -->
+            <div class="mt-4 flex flex-wrap items-center justify-center gap-3 sm:gap-6">
+                <!-- Candy Canes (Money) -->
+                <div class="bg-gradient-to-r from-red-600 via-red-500 to-red-600 text-white px-5 py-2.5 rounded-2xl shadow-lg border-2 border-red-300 flex items-center gap-3 glow-red">
+                    <i class="fa-solid fa-candy-cane text-2xl text-amber-200"></i>
+                    <div class="text-left leading-none">
+                        <div class="text-[10px] uppercase font-extrabold tracking-wider text-red-100">Candy Canes</div>
+                        <div id="candy-display" class="text-xl sm:text-2xl font-black">100</div>
+                    </div>
+                </div>
+
+                <!-- Joy Level (Multiplier) -->
+                <div class="bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 px-5 py-2.5 rounded-2xl shadow-lg border-2 border-amber-200 flex items-center gap-3 glow-gold">
+                    <i class="fa-solid fa-face-smile-beam text-2xl text-slate-900"></i>
+                    <div class="text-left leading-none">
+                        <div class="text-[10px] uppercase font-extrabold tracking-wider text-slate-900/80">Workshop Joy</div>
+                        <div id="joy-display" class="text-xl sm:text-2xl font-black">100%</div>
+                    </div>
+                </div>
+
+                <!-- Total Elves -->
+                <div class="bg-slate-900/90 border border-emerald-500/50 px-5 py-2.5 rounded-2xl shadow-lg flex items-center gap-3">
+                    <i class="fa-solid fa-users text-emerald-400 text-2xl"></i>
+                    <div class="text-left leading-none">
+                        <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Total Elves</div>
+                        <div id="elves-display" class="text-xl sm:text-2xl font-black text-emerald-400">1</div>
+                    </div>
+                </div>
+
+                <!-- Total Toys Crafting Speed -->
+                <div class="bg-slate-900/90 border border-teal-500/50 px-5 py-2.5 rounded-2xl shadow-lg flex items-center gap-3">
+                    <i class="fa-solid fa-gift text-teal-400 text-2xl animate-bounce"></i>
+                    <div class="text-left leading-none">
+                        <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Production Rate</div>
+                        <div id="rate-display" class="text-xl sm:text-2xl font-black text-teal-300">1 / sec</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Tycoon Interactive Grid -->
+        <main class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start my-auto">
+
+            <!-- Left Side: Toy Lines & Clicker -->
+            <section class="lg:col-span-7 space-y-4">
+
+                <!-- Manual Crafting Workbench (Clicker Button) -->
+                <div class="bg-gradient-to-b from-slate-900 to-slate-900/90 border-2 border-amber-500/40 p-5 rounded-3xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden">
+                    <div class="text-center sm:text-left z-10">
+                        <h2 class="text-xl font-extrabold text-amber-300 flex items-center gap-2 justify-center sm:justify-start">
+                            <i class="fa-solid fa-hammer text-amber-400 animate-bounce"></i> Santa's Master Workbench
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Tap manually to wrap extra gifts & earn instant Candy Canes!</p>
+                    </div>
+
+                    <div class="relative w-full sm:w-auto z-10">
+                        <button id="craft-btn" class="w-full sm:w-auto relative bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-lg py-3.5 px-8 rounded-2xl shadow-lg border-2 border-emerald-300/60 active:scale-90 transition transform flex items-center justify-center gap-3 glow-green cursor-pointer">
+                            <span class="text-2xl animate-spin-slow">🎁</span>
+                            <span>CRAFT GIFT (+<span id="click-value">1</span>)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Toy production lines, rendered by renderToyLines() -->
+                <div id="toy-lines-container" class="space-y-3"></div>
+
+            </section>
+
+            <!-- Right Side: Elf Hiring, Upgrades & Deliveries -->
+            <section class="lg:col-span-5 space-y-4">
+
+                <!-- Navigation Tabs -->
+                <div class="bg-slate-900/80 backdrop-blur-md p-1.5 rounded-2xl border border-slate-800 flex gap-1">
+                    <button id="tab-elves" class="flex-1 py-2 text-xs sm:text-sm font-bold text-amber-300 bg-slate-800 border border-amber-500/40 rounded-xl flex items-center justify-center gap-1.5 transition">
+                        <i class="fa-solid fa-hat-wizard text-emerald-400"></i> Hire Elves
+                    </button>
+                    <button id="tab-upgrades" class="flex-1 py-2 text-xs sm:text-sm font-bold text-slate-400 hover:text-slate-200 rounded-xl flex items-center justify-center gap-1.5 transition">
+                        <i class="fa-solid fa-bolt text-amber-400"></i> Upgrades
+                    </button>
+                    <button id="tab-delivery" class="flex-1 py-2 text-xs sm:text-sm font-bold text-slate-400 hover:text-slate-200 rounded-xl flex items-center justify-center gap-1.5 transition">
+                        <i class="fa-solid fa-earth-americas text-red-400"></i> Deliveries
+                    </button>
+                </div>
+
+                <!-- Tab Content 1: Elf Roster & Hiring -->
+                <div id="view-elves" class="bg-slate-900/80 backdrop-blur-md p-4 rounded-3xl border border-slate-800 shadow-xl space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <h3 class="font-bold text-sm text-slate-200">North Pole Staffing</h3>
+                        <span class="text-xs text-slate-400">Each elf boosts crafting speed!</span>
+                    </div>
+
+                    <div id="elves-list" class="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                        <!-- Dynamic Elves -->
+                    </div>
+                </div>
+
+                <!-- Tab Content 2: Workshop Upgrades -->
+                <div id="view-upgrades" class="hidden bg-slate-900/80 backdrop-blur-md p-4 rounded-3xl border border-slate-800 shadow-xl space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <h3 class="font-bold text-sm text-slate-200">Magic Upgrades</h3>
+                        <span class="text-xs text-slate-400">Permanently multiply efficiency</span>
+                    </div>
+
+                    <div id="upgrades-list" class="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                        <!-- Dynamic Upgrades -->
+                    </div>
+                </div>
+
+                <!-- Tab Content 3: Christmas Eve Delivery Missions -->
+                <div id="view-delivery" class="hidden bg-slate-900/80 backdrop-blur-md p-4 rounded-3xl border border-slate-800 shadow-xl space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <h3 class="font-bold text-sm text-red-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-sleigh"></i> Christmas Eve Delivery Flight
+                        </h3>
+                        <span class="text-xs text-amber-300 font-bold">Earn Huge Bonuses!</span>
+                    </div>
+
+                    <div id="delivery-list" class="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                        <!-- Dynamic Missions -->
+                    </div>
+                </div>
+
+            </section>
+
+        </main>
+
+        <!-- Footer Log & Controls -->
+        <footer class="mt-6 bg-slate-900/90 border border-slate-800 rounded-2xl p-4 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-3 text-xs text-slate-400">
+                <i class="fa-solid fa-scroll text-amber-400 text-lg"></i>
+                <span id="log-text" class="italic text-slate-300">Welcome to Santa's Workshop! Tap 'Craft Gift' or build Toy Lines to begin!</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button id="reset-game-btn" class="text-xs text-slate-500 hover:text-red-400 px-3 py-1.5 rounded-lg border border-slate-800 hover:border-red-900/50 transition">
+                    Reset Progress
+                </button>
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        /**
+         * GAME STATE
+         */
+        const state = {
+            candy: 100,
+            clickPower: 1,
+            totalGiftsCrafted: 0,
+            joyLevel: 100, // percentage multiplier
+
+            toyLines: [
+                { id: 'bears', name: 'Teddy Bear Stitchers', emoji: '🧸', baseCost: 15, basePerSec: 1, count: 0 },
+                { id: 'trains', name: 'Wooden Train Builders', emoji: '🚂', baseCost: 100, basePerSec: 8, count: 0 },
+                { id: 'robots', name: 'Retro Toy Robots', emoji: '🤖', baseCost: 1100, basePerSec: 48, count: 0 },
+                { id: 'consoles', name: 'Magic Gaming Consoles', emoji: '🎮', baseCost: 12000, basePerSec: 260, count: 0 },
+                { id: 'sleighs', name: 'Miniature Magic Sleighs', emoji: '🛷', baseCost: 130000, basePerSec: 1400, count: 0 }
+            ],
+
+            elves: [
+                { id: 'tinsel', name: 'Tinsel Pepper-Foot', role: 'Toy Apprentice', emoji: '🧝‍♂️', cost: 50, boost: 2, hired: false },
+                { id: 'holly', name: 'Holly Sugar-Plum', role: 'Chief Wrapping Officer', emoji: '🧝‍♀️', cost: 500, boost: 10, hired: false },
+                { id: 'bernard', name: 'Bernard the Head Elf', role: 'Workshop Supervisor', emoji: '🧙‍♂️', cost: 5000, boost: 60, hired: false },
+                { id: 'rudolph', name: 'Rudolph the Lead Reindeer', role: 'Flight Navigator', emoji: '🦌', cost: 50000, boost: 350, hired: false }
+            ],
+
+            upgrades: [
+                { id: 'hot_cocoa', name: 'Hot Cocoa Station', emoji: '☕', cost: 100, desc: 'Increases Crafting Click Power by +2', bought: false, apply: () => state.clickPower += 2 },
+                { id: 'magic_dust', name: 'Pixie Dust Coating', emoji: '✨', cost: 1000, desc: 'Doubles efficiency of ALL Toy Lines!', bought: false, apply: () => state.toyLines.forEach(l => l.basePerSec *= 2) },
+                { id: 'jingle_bells', name: 'Golden Jingle Bells', emoji: '🔔', cost: 10000, desc: 'Boosts Workshop Joy by +50%!', bought: false, apply: () => state.joyLevel += 50 }
+            ],
+
+            missions: [
+                { id: 'm1', title: 'Deliver to North America', reqGifts: 500, reward: 2500, emoji: '🗽', completed: false },
+                { id: 'm2', title: 'Deliver to European Alps', reqGifts: 5000, reward: 30000, emoji: '🏰', completed: false },
+                { id: 'm3', title: 'Worldwide Christmas Journey', reqGifts: 50000, reward: 400000, emoji: '🌏', completed: false }
+            ]
+        };
+
+        // Total rate calculation
+        function getPassiveRate() {
+            let baseRate = state.toyLines.reduce((acc, l) => acc + (l.count * l.basePerSec), 0);
+            let elfBoost = state.elves.reduce((acc, e) => acc + (e.hired ? e.boost : 0), 0);
+            let joyMultiplier = state.joyLevel / 100;
+            return Math.round((baseRate + elfBoost) * joyMultiplier);
+        }
+
+        /**
+         * RENDER FUNCTIONS
+         */
+        function updateDashboard() {
+            document.getElementById('candy-display').innerText = Math.floor(state.candy).toLocaleString();
+            document.getElementById('joy-display').innerText = `${state.joyLevel}%`;
+
+            const totalElvesCount = state.elves.filter(e => e.hired).length + 1;
+            document.getElementById('elves-display').innerText = totalElvesCount;
+            document.getElementById('rate-display').innerText = `${getPassiveRate().toLocaleString()} / sec`;
+            document.getElementById('click-value').innerText = state.clickPower;
+        }
+
+        function renderToyLines() {
+            const container = document.getElementById('toy-lines-container');
+            container.innerHTML = state.toyLines.map(line => {
+                const cost = Math.floor(line.baseCost * Math.pow(1.15, line.count));
+                const canAfford = state.candy >= cost;
+                const isProducing = line.count > 0;
+
+                return `
+                    <div class="p-3.5 rounded-2xl bg-slate-800/80 border ${line.count > 0 ? 'border-emerald-600/40 conveyor-bg' : 'border-slate-700/60'} flex items-center justify-between gap-3 shadow-md animate-card-pop relative overflow-hidden transition-all duration-300 hover:scale-[1.01]">
+                        <div class="flex items-center gap-3 z-10">
+                            <span class="text-3xl sm:text-4xl filter drop-shadow ${isProducing ? 'animate-bounce' : ''}">${line.emoji}</span>
+                            <div>
+                                <div class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                                    ${line.name}
+                                    <span class="text-xs bg-emerald-900/80 text-emerald-300 px-2 py-0.5 rounded-full font-bold shadow-inner">x${line.count}</span>
+                                </div>
+                                <div class="text-xs text-slate-400 mt-0.5">
+                                    Produces <span class="text-teal-300 font-semibold">+${(line.basePerSec * (line.count || 1)).toLocaleString()}/s</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button onclick="buyToyLine('${line.id}')" ${!canAfford ? 'disabled' : ''} class="z-10 text-xs font-extrabold py-2 px-4 rounded-xl transition-all duration-200 flex items-center gap-1.5 ${canAfford ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 hover:scale-105 active:scale-95 text-slate-950 shadow-md cursor-pointer glow-gold' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}">
+                            <span>Buy</span>
+                            <span class="text-[11px] opacity-90"><i class="fa-solid fa-candy-cane"></i> ${cost.toLocaleString()}</span>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderElves() {
+            const container = document.getElementById('elves-list');
+            container.innerHTML = state.elves.map(elf => {
+                const canAfford = state.candy >= elf.cost;
+
+                return `
+                    <div class="p-3 rounded-2xl bg-slate-800/80 border ${elf.hired ? 'border-emerald-500/60 bg-emerald-950/20' : 'border-slate-700/60'} flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl">${elf.emoji}</span>
+                            <div>
+                                <div class="text-sm font-bold text-amber-300">${elf.name}</div>
+                                <div class="text-xs text-slate-300">${elf.role}</div>
+                                <div class="text-[11px] text-emerald-400 font-semibold mt-0.5">+${elf.boost} Gifts/sec bonus</div>
+                            </div>
+                        </div>
+
+                        ${elf.hired
+                            ? `<span class="text-xs bg-emerald-700/50 text-emerald-300 font-bold px-3 py-1.5 rounded-xl border border-emerald-500/40"><i class="fa-solid fa-check mr-1"></i> Hired</span>`
+                            : `<button onclick="hireElf('${elf.id}')" ${!canAfford ? 'disabled' : ''} class="text-xs font-bold py-2 px-3 rounded-xl transition ${canAfford ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md cursor-pointer' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}">
+                                Hire (${elf.cost.toLocaleString()} 🍬)
+                               </button>`
+                        }
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderUpgrades() {
+            const container = document.getElementById('upgrades-list');
+            container.innerHTML = state.upgrades.map(up => {
+                const canAfford = state.candy >= up.cost;
+
+                return `
+                    <div class="p-3 rounded-2xl bg-slate-800/80 border ${up.bought ? 'border-amber-500/60 bg-amber-950/20' : 'border-slate-700/60'} flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl">${up.emoji}</span>
+                            <div>
+                                <div class="text-sm font-bold text-slate-100">${up.name}</div>
+                                <div class="text-xs text-slate-400">${up.desc}</div>
+                            </div>
+                        </div>
+
+                        ${up.bought
+                            ? `<span class="text-xs bg-amber-600/40 text-amber-300 font-bold px-3 py-1.5 rounded-xl border border-amber-500/40"><i class="fa-solid fa-check mr-1"></i> Active</span>`
+                            : `<button onclick="buyUpgrade('${up.id}')" ${!canAfford ? 'disabled' : ''} class="text-xs font-bold py-2 px-3 rounded-xl transition ${canAfford ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md cursor-pointer' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}">
+                                Buy (${up.cost.toLocaleString()} 🍬)
+                               </button>`
+                        }
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderDeliveries() {
+            const container = document.getElementById('delivery-list');
+            container.innerHTML = state.missions.map(m => {
+                const canDeliver = state.totalGiftsCrafted >= m.reqGifts;
+
+                return `
+                    <div class="p-3.5 rounded-2xl bg-slate-800/80 border ${m.completed ? 'border-teal-500/50 bg-teal-950/20' : 'border-slate-700/60'} space-y-2">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <span class="text-2xl">${m.emoji}</span>
+                                <span class="text-sm font-bold text-slate-100">${m.title}</span>
+                            </div>
+                            <span class="text-xs font-bold text-amber-300">+${m.reward.toLocaleString()} Candy Canes</span>
+                        </div>
+
+                        <div class="text-xs text-slate-400 flex justify-between">
+                            <span>Requires: ${m.reqGifts.toLocaleString()} Crafts</span>
+                            <span>Progress: ${Math.min(state.totalGiftsCrafted, m.reqGifts).toLocaleString()} / ${m.reqGifts.toLocaleString()}</span>
+                        </div>
+
+                        ${m.completed
+                            ? `<div class="text-center text-xs text-teal-300 font-bold py-1 bg-teal-900/40 rounded-xl"><i class="fa-solid fa-circle-check"></i> Flight Completed!</div>`
+                            : `<button onclick="completeMission('${m.id}')" ${!canDeliver ? 'disabled' : ''} class="w-full text-xs font-bold py-2 rounded-xl transition ${canDeliver ? 'bg-gradient-to-r from-red-600 to-emerald-600 hover:from-red-500 hover:to-emerald-500 text-white shadow-md cursor-pointer glow-red' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}">
+                                Launch Sleigh Flight
+                               </button>`
+                        }
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /**
+         * GAME ACTIONS
+         */
+        function buyToyLine(id) {
+            const line = state.toyLines.find(l => l.id === id);
+            const cost = Math.floor(line.baseCost * Math.pow(1.15, line.count));
+            if (state.candy >= cost) {
+                state.candy -= cost;
+                line.count++;
+                logAction(`Constructed dynamic line: ${line.name}! (+${line.basePerSec}/s)`);
+                updateAll();
+            }
+        }
+
+        function hireElf(id) {
+            const elf = state.elves.find(e => e.id === id);
+            if (state.candy >= elf.cost && !elf.hired) {
+                state.candy -= elf.cost;
+                elf.hired = true;
+                logAction(`Hired ${elf.name} to the North Pole team!`);
+                updateAll();
+                triggerConfetti();
+            }
+        }
+
+        function buyUpgrade(id) {
+            const up = state.upgrades.find(u => u.id === id);
+            if (state.candy >= up.cost && !up.bought) {
+                state.candy -= up.cost;
+                up.bought = true;
+                up.apply();
+                logAction(`Magic Upgrade Activated: ${up.name}!`);
+                updateAll();
+                triggerConfetti();
+            }
+        }
+
+        function completeMission(id) {
+            const m = state.missions.find(m => m.id === id);
+            if (state.totalGiftsCrafted >= m.reqGifts && !m.completed) {
+                m.completed = true;
+                state.candy += m.reward;
+                logAction(`Christmas Flight Successful! Earned +${m.reward.toLocaleString()} Candy Canes!`);
+                updateAll();
+                triggerConfetti();
+            }
+        }
+
+        function logAction(msg) {
+            document.getElementById('log-text').innerText = msg;
+        }
+
+        function triggerConfetti() {
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 80,
+                    spread: 60,
+                    origin: { y: 0.7 },
+                    colors: ['#EF4444', '#10B981', '#F59E0B', '#FFFFFF']
+                });
+            }
+        }
+
+        function updateAll() {
+            updateDashboard();
+            renderToyLines();
+            renderElves();
+            renderUpgrades();
+            renderDeliveries();
+        }
+
+        /**
+         * SNOW BACKGROUND
+         */
+        function initSnow() {
+            const canvas = document.getElementById('snow-canvas');
+            const ctx = canvas.getContext('2d');
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            const flakes = Array.from({ length: 50 }, () => ({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                r: Math.random() * 3 + 1,
+                d: Math.random() * 1 + 0.5
+            }));
+
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+                ctx.beginPath();
+                flakes.forEach(f => {
+                    ctx.moveTo(f.x, f.y);
+                    ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2, true);
+                    f.y += Math.cos(f.d) + 1 + f.r / 2;
+                    f.x += Math.sin(f.d) * 0.5;
+                    if (f.y > canvas.height) {
+                        f.y = -10;
+                        f.x = Math.random() * canvas.width;
+                    }
+                });
+                ctx.fill();
+                requestAnimationFrame(draw);
+            }
+            draw();
+        }
+
+        /**
+         * INITIALIZATION & TICKER LOOP
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            initSnow();
+            updateAll();
+
+            // Crafting Manual Clicker with Floating Floating Numbers Animation
+            const craftBtn = document.getElementById('craft-btn');
+            craftBtn.addEventListener('click', (e) => {
+                state.candy += state.clickPower;
+                state.totalGiftsCrafted += state.clickPower;
+
+                // Spawn Floating +1 Pop-up Number
+                const rect = craftBtn.getBoundingClientRect();
+                const numEl = document.createElement('div');
+                numEl.className = 'float-number text-lg font-black';
+                numEl.innerText = `+${state.clickPower} 🍬`;
+                numEl.style.left = `${e.clientX - rect.left + (Math.random() * 20 - 10)}px`;
+                numEl.style.top = `${e.clientY - rect.top - 10}px`;
+                craftBtn.parentElement.appendChild(numEl);
+
+                setTimeout(() => numEl.remove(), 800);
+
+                updateDashboard();
+                renderToyLines();
+                renderElves();
+                renderUpgrades();
+                renderDeliveries();
+            });
+
+            // Passive Game Loop (Runs 10x per second for smooth updates)
+            setInterval(() => {
+                const passiveRate = getPassiveRate();
+                if (passiveRate > 0) {
+                    const gain = passiveRate / 10;
+                    state.candy += gain;
+                    state.totalGiftsCrafted += gain;
+                    updateDashboard();
+                    renderToyLines();
+                    renderElves();
+                    renderUpgrades();
+                    renderDeliveries();
+                }
+            }, 100);
+
+            // Tab Navigation Logic
+            const tabElves = document.getElementById('tab-elves');
+            const tabUpgrades = document.getElementById('tab-upgrades');
+            const tabDelivery = document.getElementById('tab-delivery');
+
+            const viewElves = document.getElementById('view-elves');
+            const viewUpgrades = document.getElementById('view-upgrades');
+            const viewDelivery = document.getElementById('view-delivery');
+
+            function setActiveTab(activeBtn, activeView) {
+                [tabElves, tabUpgrades, tabDelivery].forEach(btn => {
+                    btn.className = "flex-1 py-2 text-xs sm:text-sm font-bold text-slate-400 hover:text-slate-200 rounded-xl flex items-center justify-center gap-1.5 transition";
+                });
+                [viewElves, viewUpgrades, viewDelivery].forEach(v => v.classList.add('hidden'));
+
+                activeBtn.className = "flex-1 py-2 text-xs sm:text-sm font-bold text-amber-300 bg-slate-800 border border-amber-500/40 rounded-xl flex items-center justify-center gap-1.5 transition";
+                activeView.classList.remove('hidden');
+            }
+
+            tabElves.addEventListener('click', () => setActiveTab(tabElves, viewElves));
+            tabUpgrades.addEventListener('click', () => setActiveTab(tabUpgrades, viewUpgrades));
+            tabDelivery.addEventListener('click', () => setActiveTab(tabDelivery, viewDelivery));
+
+            // Reset Game Progress
+            document.getElementById('reset-game-btn').addEventListener('click', () => {
+                state.candy = 100;
+                state.clickPower = 1;
+                state.totalGiftsCrafted = 0;
+                state.joyLevel = 100;
+                state.toyLines.forEach(l => l.count = 0);
+                state.elves.forEach(e => e.hired = false);
+                state.upgrades.forEach(u => u.bought = false);
+                state.missions.forEach(m => m.completed = false);
+                logAction('Progress reset! Welcome back to Santa\'s Workshop.');
+                updateAll();
+            });
+        });
+    </script>
+</body>
+</html>
