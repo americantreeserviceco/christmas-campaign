@@ -215,3 +215,47 @@ test('Advent rolls into January and all twelve ornaments can be revealed', () =>
         await page.reload();
         assert.equal(await page.locator('#collection-progress').textContent(), '12 of 12 ornaments collected');
     }, page => page.clock.install({ time: new Date('2027-01-05T06:59:59Z') })));
+
+test('Roulette bonus claim starts one new spin and preserves both awards', () =>
+    withGame(preview + '12_days_of_christmas_roulette.html', async page => {
+        await page.locator('#sound-toggle-btn').click();
+        await page.evaluate(() => { Math.random = () => 2.5 / prizes.length; });
+        await page.locator('#spin-btn').click();
+        const dialog = page.locator('#prize-modal');
+        assert.match(await dialog.locator('#modal-prize-title').textContent(), /BONUS SPIN AGAIN/);
+
+        await page.evaluate(() => { Math.random = () => 0; });
+        await dialog.getByRole('button', { name: 'Spin Again Now!' }).click();
+        assert.match(await dialog.locator('#modal-prize-title').textContent(), /Partridge/);
+        await dialog.getByRole('button', { name: 'Claim Prize' }).click();
+        assert.equal(await dialog.isVisible(), false);
+        await page.reload();
+        assert.equal(await page.locator('#streak-count').textContent(), '2');
+        assert.equal(await page.locator('#total-points-display').textContent(), '670');
+    }));
+
+test('Elf Workshop grants delivery rewards once across reloads', () =>
+    withGame(preview + 'elf_workshop_tycoon.html', async page => {
+        const candy = page.locator('#candy-display');
+        const flight = page.locator('#delivery-list').getByRole('button', { name: 'Launch Sleigh Flight' });
+        await page.locator('#tab-delivery').click();
+        assert.equal(await flight.first().isDisabled(), true);
+        await page.locator('#craft-btn').click();
+        assert.equal(await flight.first().isEnabled(), true);
+        await flight.first().click();
+        const completed = page.locator('#delivery-list').getByText('Flight Completed!');
+        assert.equal(await completed.count(), 1);
+        assert.equal(await candy.textContent(), (2601).toLocaleString());
+
+        await page.reload();
+        await page.locator('#tab-delivery').click();
+        assert.equal(await completed.isVisible(), true);
+        assert.equal(await flight.count(), 2);
+        await page.evaluate(() => completeMission('m1'));
+        assert.equal(await candy.textContent(), (2601).toLocaleString());
+    }, page => page.addInitScript(() => {
+        const key = 'elf-workshop-tycoon-v1';
+        if (localStorage.getItem(key) === null) {
+            localStorage.setItem(key, JSON.stringify({ candy: 100, totalGiftsCrafted: 499 }));
+        }
+    })));
