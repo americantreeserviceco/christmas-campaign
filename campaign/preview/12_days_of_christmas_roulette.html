@@ -139,7 +139,7 @@
                             </span>
                         </button>
 
-                        <button id="sound-toggle-btn" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-amber-300 w-12 h-12 rounded-full flex items-center justify-center shadow-md transition" title="Toggle Sound">
+                        <button id="sound-toggle-btn" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-amber-300 w-12 h-12 rounded-full flex items-center justify-center shadow-md transition" aria-label="Game sound" aria-pressed="true">
                             <i id="sound-icon" class="fa-solid fa-volume-high text-lg"></i>
                         </button>
                     </div>
@@ -168,16 +168,16 @@
     </div>
 
     <!-- Prize Result Modal -->
-    <div id="prize-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 transition-opacity duration-300">
-        <div class="relative bg-gradient-to-b from-slate-900 via-slate-900 to-emerald-950 border-2 border-amber-400 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center shadow-2xl transform scale-90 transition-transform duration-300 glow-gold">
+    <dialog id="prize-modal" aria-labelledby="modal-prize-title">
+        <div class="relative bg-gradient-to-b from-slate-900 via-slate-900 to-emerald-950 border-2 border-amber-400 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center shadow-2xl glow-gold">
 
             <!-- Close Button -->
-            <button id="modal-close-btn" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center transition">
+            <button id="modal-close-btn" aria-label="Close prize" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center transition">
                 <i class="fa-solid fa-xmark"></i>
             </button>
 
             <div class="inline-block bg-red-600/20 border border-red-500/50 rounded-full px-4 py-1 text-red-400 font-bold text-sm tracking-wide mb-3">
-                DAY <span id="modal-day-num">1</span> UNLOCKED!
+                <span id="modal-day-num">Day 1</span>
             </div>
 
             <!-- Big Icon Display -->
@@ -199,10 +199,23 @@
                 </button>
             </div>
         </div>
-    </div>
+    </dialog>
 
     <!-- Pointer CSS Clip Path helper -->
     <style>
+        #prize-modal {
+            width: min(92vw, 28rem);
+            max-height: 90dvh;
+            margin: auto;
+            color: inherit;
+            background: transparent;
+            border-radius: 1.5rem;
+        }
+        #prize-modal::backdrop { background: #020617d9; }
+        button:focus-visible { outline: 3px solid #fde68a; outline-offset: 3px; }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation: none !important; transition: none !important; }
+        }
         .clip-pointer {
             clip-path: polygon(0% 0%, 100% 0%, 50% 100%);
         }
@@ -246,10 +259,32 @@
         ];
 
         let prizes = [...DEFAULT_DAYS];
-        let totalPoints = parseInt(localStorage.getItem('christmas_points')) || 0;
-        let streak = parseInt(localStorage.getItem('christmas_streak')) || 0;
-        let inventory = JSON.parse(localStorage.getItem('christmas_inventory')) || [];
-        let claimedHistory = JSON.parse(localStorage.getItem('christmas_history_12')) || [];
+        const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+        const prizeDialog = document.getElementById('prize-modal');
+        function readSave(key, fallback, valid) {
+            try {
+                const value = JSON.parse(localStorage.getItem(key));
+                return valid(value) ? value : fallback;
+            } catch {
+                return fallback;
+            }
+        }
+        function writeSave(key, value) {
+            try {
+                localStorage.setItem(key, JSON.stringify(value));
+            } catch {
+                // Keep play available for the current visit.
+            }
+        }
+        const isScore = value => Number.isSafeInteger(value) && value >= 0;
+        let totalPoints = readSave('christmas_points', 0, isScore);
+        let streak = readSave('christmas_streak', 0, isScore);
+        let inventory = readSave('christmas_inventory', [], Array.isArray)
+            .filter(item => SHOP_ITEMS.some(product => product.id === item?.id));
+        const historyLimit = 40;
+        let claimedHistory = readSave('christmas_history_12', [], Array.isArray)
+            .filter(item => isScore(item?.earnedPts) && typeof item.title === 'string')
+            .slice(0, historyLimit);
         let audioEnabled = true;
 
         // Calculate current multiplier from streak
@@ -264,6 +299,7 @@
         let audioCtx = null;
 
         function initAudio() {
+            if (!audioEnabled || !AudioContext) return;
             if (!audioCtx) {
                 audioCtx = new AudioContext();
             }
@@ -402,90 +438,48 @@
             ctx.restore();
         }
 
-        /**
-         * PHYSICS-BASED SPINNING LOGIC
-         */
-        let spinVelocity = 0;
-        let friction = 0.985;
-        let lastSegmentIndex = -1;
-
         function spinWheel() {
-            if (isSpinning) return;
+            if (isSpinning || prizeDialog.open) return;
 
             initAudio();
             isSpinning = true;
-            document.getElementById('spin-btn').disabled = true;
-            document.getElementById('spin-btn').classList.add('opacity-75', 'cursor-not-allowed');
+            const button = document.getElementById('spin-btn');
+            button.disabled = true;
 
-            // Increment streak
-            streak++;
-            localStorage.setItem('christmas_streak', streak);
-            updateScoreboard();
+            const turn = 2 * Math.PI;
+            const slice = turn / prizes.length;
+            const winner = Math.floor(Math.random() * prizes.length);
+            const destination = (1.5 * Math.PI - (winner + 0.5) * slice + turn) % turn;
+            const start = currentAngle % turn;
+            const distance = 5 * turn + (destination - start + turn) % turn;
+            const started = performance.now();
+            let lastSegment = -1;
 
-            // Determine slice outcome
-            const numSlices = prizes.length;
-            const sliceAngle = (Math.PI * 2) / numSlices;
-            const wonPrizeIndex = Math.floor(Math.random() * numSlices);
+            function frame(now) {
+                const progress = reducedMotion.matches ? 1 : Math.min(1, (now - started) / 2600);
+                currentAngle = start + distance * (1 - (1 - progress) ** 4);
+                const segment = Math.floor(((1.5 * Math.PI - currentAngle) % turn + turn) % turn / slice);
+                if (segment !== lastSegment && !reducedMotion.matches) playTickSound();
+                lastSegment = segment;
+                drawWheel();
 
-            const targetSliceCenter = wonPrizeIndex * sliceAngle + sliceAngle / 2;
-            let desiredFinalAngle = (Math.PI * 1.5) - targetSliceCenter;
-
-            while (desiredFinalAngle < 0) desiredFinalAngle += Math.PI * 2;
-            const extraRotations = (Math.floor(Math.random() * 4) + 6) * (Math.PI * 2);
-            const totalRotationNeeded = extraRotations + (desiredFinalAngle - (currentAngle % (Math.PI * 2)));
-
-            spinVelocity = Math.sqrt(2 * 0.0015 * totalRotationNeeded);
-
-            animateSpin();
-        }
-
-        function animateSpin() {
-            if (!isSpinning) return;
-
-            currentAngle += spinVelocity;
-            spinVelocity *= friction;
-
-            const numSlices = prizes.length;
-            const sliceAngle = (Math.PI * 2) / numSlices;
-            const normalizedAngle = (Math.PI * 1.5 - currentAngle) % (Math.PI * 2);
-            const positiveAngle = normalizedAngle < 0 ? normalizedAngle + Math.PI * 2 : normalizedAngle;
-            const currentSegment = Math.floor(positiveAngle / sliceAngle);
-
-            if (currentSegment !== lastSegmentIndex) {
-                playTickSound();
-                lastSegmentIndex = currentSegment;
-            }
-
-            drawWheel();
-
-            if (spinVelocity < 0.002) {
-                spinVelocity = 0;
+                if (progress < 1) {
+                    requestAnimationFrame(frame);
+                    return;
+                }
                 isSpinning = false;
-                document.getElementById('spin-btn').disabled = false;
-                document.getElementById('spin-btn').classList.remove('opacity-75', 'cursor-not-allowed');
-
-                const finalSegment = currentSegment % numSlices;
-                const winningPrize = prizes[finalSegment];
-
-                onWinPrize(winningPrize);
-            } else {
-                requestAnimationFrame(animateSpin);
+                button.disabled = false;
+                streak++;
+                writeSave('christmas_streak', streak);
+                onWinPrize(prizes[winner]);
             }
+
+            if (reducedMotion.matches) frame(started);
+            else requestAnimationFrame(frame);
         }
 
-        /**
-         * MODAL CONTROLS
-         */
         function closeModal() {
-            const modal = document.getElementById('prize-modal');
-            if (!modal) return;
-            const modalCard = modal.querySelector('div');
-            modal.classList.add('opacity-0');
-            if (modalCard) {
-                modalCard.classList.remove('scale-100');
-                modalCard.classList.add('scale-90');
-            }
-            setTimeout(() => modal.classList.add('hidden'), 300);
+            prizeDialog.close();
         }
 
         /**
@@ -495,7 +489,7 @@
             const mult = getMultiplier();
             const earnedPts = Math.round(prize.points * mult);
             totalPoints += earnedPts;
-            localStorage.setItem('christmas_points', totalPoints);
+            writeSave('christmas_points', totalPoints);
 
             // Update spin counter for day items
             if (!prize.isSpinAgain && typeof prize.spinsLeft === 'number') {
@@ -520,30 +514,13 @@
                 ? `${prize.desc} (Multiplier: ${mult}x)`
                 : `${prize.desc} (Base: ${prize.points} Pts × ${mult}x Multiplier • ${prize.spinsLeft} Spins Left for Day ${prize.day})`;
 
-            // Show Modal
-            const modal = document.getElementById('prize-modal');
-            const modalCard = modal.querySelector('div');
-
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                modal.classList.remove('opacity-0');
-                modalCard.classList.remove('scale-90');
-                modalCard.classList.add('scale-100');
-            }, 10);
-
-            // Auto spin again if landed on "Spin Again!"
-            if (prize.isSpinAgain) {
-                const claimBtn = document.getElementById('modal-claim-btn');
-                claimBtn.innerHTML = `<i class="fa-solid fa-rotate-right animate-spin"></i> Spin Again Now!`;
-                claimBtn.onclick = () => {
-                    closeModal();
-                    setTimeout(spinWheel, 300);
-                };
-            } else {
-                const claimBtn = document.getElementById('modal-claim-btn');
-                claimBtn.innerHTML = `<i class="fa-solid fa-gift"></i> Claim Prize`;
-                claimBtn.onclick = closeModal;
-            }
+            const claimBtn = document.getElementById('modal-claim-btn');
+            claimBtn.textContent = prize.isSpinAgain ? 'Spin Again Now!' : 'Claim Prize';
+            claimBtn.onclick = () => {
+                closeModal();
+                if (prize.isSpinAgain) spinWheel();
+            };
+            prizeDialog.showModal();
 
             addHistoryItem(prize, earnedPts);
         }
@@ -569,7 +546,7 @@
         }
 
         function triggerConfetti() {
-            if (typeof confetti === 'function') {
+            if (!reducedMotion.matches && typeof confetti === 'function') {
                 confetti({
                     particleCount: 100,
                     spread: 70,
@@ -585,7 +562,8 @@
         function addHistoryItem(prize, earnedPts) {
             const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             claimedHistory.unshift({ ...prize, earnedPts, time });
-            localStorage.setItem('christmas_history_12', JSON.stringify(claimedHistory));
+            claimedHistory.length = Math.min(claimedHistory.length, historyLimit);
+            writeSave('christmas_history_12', claimedHistory);
             renderHistory();
         }
 
@@ -644,8 +622,8 @@
             totalPoints -= item.cost;
             inventory.push({ ...item, redeemedAt: new Date().toLocaleDateString() });
 
-            localStorage.setItem('christmas_points', totalPoints);
-            localStorage.setItem('christmas_inventory', JSON.stringify(inventory));
+            writeSave('christmas_points', totalPoints);
+            writeSave('christmas_inventory', inventory);
 
             updateScoreboard();
             renderInventory();
@@ -675,6 +653,7 @@
          * BACKGROUND SNOW ANIMATION
          */
         function initSnow() {
+            if (reducedMotion.matches) return;
             const snowCanvas = document.getElementById('snow-canvas');
             const sCtx = snowCanvas.getContext('2d');
 
@@ -757,17 +736,18 @@
             const soundIcon = document.getElementById('sound-icon');
             soundBtn.addEventListener('click', () => {
                 audioEnabled = !audioEnabled;
+                soundBtn.setAttribute('aria-pressed', String(audioEnabled));
                 soundIcon.className = audioEnabled ? 'fa-solid fa-volume-high text-lg' : 'fa-solid fa-volume-xmark text-lg text-red-400';
             });
 
             // Modal Controls
             document.getElementById('modal-close-btn').addEventListener('click', closeModal);
-            document.getElementById('modal-claim-btn').addEventListener('click', closeModal);
+            prizeDialog.addEventListener('close', () => document.getElementById('spin-btn').focus());
 
             // Clear History
             document.getElementById('clear-history-btn').addEventListener('click', () => {
                 claimedHistory = [];
-                localStorage.removeItem('christmas_history_12');
+                writeSave('christmas_history_12', claimedHistory);
                 renderHistory();
             });
         });

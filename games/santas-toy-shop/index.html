@@ -51,7 +51,7 @@ progress{width:100%;height:12px;accent-color:#e9bd72}.metrics{display:flex;gap:2
 <div class="metrics"><div><strong id="coins"></strong><span>Workshop coins</span></div><div><strong id="elves"></strong><span>Hired elves</span></div><div><strong id="shipped"></strong><span>Orders shipped</span></div></div>
 </section>
 </div>
-<section class="collection" aria-labelledby="collection-title"><h2 id="collection-title">The ornament collection</h2><label class="art-picker">Load ornament artwork <input id="art-files" type="file" accept="image/png" multiple aria-describedby="art-status"></label><p id="art-status" role="status">Choose PNG files named day1-xmas.png through day12-xmas.png.</p><ol class="grid" id="collection"></ol></section>
+<section class="collection" aria-labelledby="collection-title"><h2 id="collection-title">The ornament collection</h2><label class="art-picker">Use your own ornament artwork <input id="art-files" type="file" accept="image/png" multiple aria-describedby="art-status"></label><p id="art-status" role="status">The workshop includes all 12 glass ornaments. To customize them, choose PNG files named day1-xmas.png through day12-xmas.png.</p><ol class="grid" id="collection"></ol></section>
 </main>
 <script>
 'use strict';
@@ -84,6 +84,7 @@ let notice = 'The first sleigh is waiting at the loading dock.';
 let lastUpdate = performance.now();
 const art = new Map();
 let shownDay = -1;
+let renderedDay = -1;
 const collection = ornaments.map(([name, icon], index) => {
   const item = document.createElement('li');
   const symbol = document.createElement('b');
@@ -140,17 +141,21 @@ function advance() {
     return;
   }
   const seconds = Math.floor((now - lastUpdate) / 1000);
-  if (seconds < 1) return;
+  if (seconds < 1) return false;
   lastUpdate += seconds * 1000;
   const duration = windowSeconds(state.day);
   const total = state.elapsed + seconds;
-  state.elapsed = total % duration;
-  state.stock = Math.min(goal(state.day), state.stock + seconds * state.elves);
-  if (total >= duration) {
+  const elapsed = Math.min(duration, total);
+  const stock = Math.min(goal(state.day), state.stock + seconds * state.elves);
+  if (elapsed === state.elapsed && stock === state.stock) return false;
+  state.elapsed = elapsed;
+  state.stock = stock;
+  if (total >= duration && !state.missed) {
     state.missed = true;
     notice = 'The sleigh left. Your batch stays at the dock, but the time bonus is gone.';
   }
   save();
+  return true;
 }
 function render() {
   const done = finished();
@@ -158,7 +163,7 @@ function render() {
   const required = done ? 1 : goal(state.day);
   get('day').textContent = done ? 'Christmas delivery complete' : 'Day ' + (state.day + 1) + ' of 12';
   if (shownDay !== state.day) {
-    const url = art.get(state.day);
+    const url = done ? null : (art.get(state.day) ?? '../../advent/ornaments/day-' + (state.day + 1) + '.webp');
     get('icon').classList.toggle('has-art', Boolean(url));
     showArt(get('icon'), url, icon);
     shownDay = state.day;
@@ -170,10 +175,11 @@ function render() {
   const cost = state.elves === 0 ? 0 : elfCost;
   get('hire').disabled = done || state.coins < cost;
   get('hire').textContent = cost ? 'Hire an elf · ' + cost + ' coins' : 'Hire your first elf · Free';
-  const left = done ? 0 : windowSeconds(state.day) - state.elapsed;
+  const left = done || state.missed ? 0 : windowSeconds(state.day) - state.elapsed;
   get('timer').textContent = done ? '✓' : Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
   get('timing').textContent = done ? 'Final sleigh dispatched' :
-    (state.launched ? 'Until the next sleigh departs' : 'Countdown starts when you craft or hire your first elf');
+    (state.missed ? 'Time bonus expired. Finish the order to ship it.' :
+    state.launched ? 'Until the time bonus expires' : 'Countdown starts when you craft or hire your first elf');
   get('stock').max = required;
   get('stock').value = done ? required : state.stock;
   get('order').textContent = done ? '12 of 12 batches shipped' : state.stock + ' / ' + required + ' ornaments packed';
@@ -183,6 +189,8 @@ function render() {
   get('coins').textContent = state.coins;
   get('elves').textContent = state.elves;
   get('shipped').textContent = state.day + '/12';
+  if (renderedDay === state.day) return;
+  renderedDay = state.day;
   for (const {item, label, index} of collection) {
     item.classList.toggle('done', index < state.day);
     item.classList.toggle('current', index === state.day);
@@ -224,6 +232,7 @@ get('ship').onclick = () => {
     state.stock = 0;
     state.elapsed = 0;
     state.missed = false;
+    state.launched = state.elves > 0;
     notice = 'Sleigh loaded! You earned ' + reward + ' coins' +
       (bonus ? ' including a ' + bonus + '-coin time bonus.' : '.');
   }
@@ -232,7 +241,7 @@ get('ship').onclick = () => {
   render();
 };
 document.addEventListener('visibilitychange', () => { lastUpdate = performance.now(); });
-setInterval(() => { advance(); render(); }, 250);
+setInterval(() => { if (advance()) render(); }, 250);
 render();
 </script>
 </body>
