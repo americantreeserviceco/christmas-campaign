@@ -151,3 +151,20 @@ test('Animated roulette ignores repeat input and lands under the pointer', () =>
             Storage.prototype.setItem = () => { throw new Error('Storage is blocked'); };
         });
     }));
+
+test('Toy Shop shows bundled art and can finish all twelve orders', () =>
+    withGame('/games/santas-toy-shop/', async page => {
+        await page.waitForFunction(() => document.querySelector('#icon img')?.naturalWidth > 0);
+        assert.match(await page.locator('#icon img').getAttribute('src'), /day-1\.webp$/);
+        await page.locator('#hire').click();
+        for (let day = 0; day < 12; day++) {
+            await page.clock.runFor((12 + day * 4) * 1000 + 250);
+            assert.equal(await page.locator('#ship').isEnabled(), true);
+            await page.locator('#ship').click();
+            assert.equal(await page.locator('#shipped').textContent(), (day + 1) + '/12');
+        }
+        await page.reload();
+        assert.equal(await page.locator('#ship').textContent(), 'Start a new workshop');
+        await page.locator('#ship').click();
+        assert.equal(await page.locator('#shipped').textContent(), '0/12');
+    }, page => page.clock.install()));
