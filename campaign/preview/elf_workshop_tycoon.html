@@ -63,6 +63,10 @@
             100% { transform: scale(1); opacity: 1; }
         }
         .animate-card-pop { animation: cardPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+            button:focus-visible { outline: 3px solid #fde68a; outline-offset: 3px; }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation: none !important; transition: none !important; }
+        }
     </style>
 </head>
 <body class="h-full bg-slate-950 text-slate-100 font-body overflow-x-hidden selection:bg-red-600 selection:text-white">
@@ -214,10 +218,11 @@
         <footer class="mt-6 bg-slate-900/90 border border-slate-800 rounded-2xl p-4 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-3">
             <div class="flex items-center gap-3 text-xs text-slate-400">
                 <i class="fa-solid fa-scroll text-amber-400 text-lg"></i>
-                <span id="log-text" class="italic text-slate-300">Welcome to Santa's Workshop! Tap 'Craft Gift' or build Toy Lines to begin!</span>
+                <span id="log-text" role="status" class="italic text-slate-300">Welcome to Santa's Workshop! Tap 'Craft Gift' or build Toy Lines to begin!</span>
             </div>
 
             <div class="flex items-center gap-2">
+                <p id="save-warning" hidden>Progress will only last for this visit.</p>
                 <button id="reset-game-btn" class="text-xs text-slate-500 hover:text-red-400 px-3 py-1.5 rounded-lg border border-slate-800 hover:border-red-900/50 transition">
                     Reset Progress
                 </button>
@@ -232,9 +237,7 @@
          */
         const state = {
             candy: 100,
-            clickPower: 1,
             totalGiftsCrafted: 0,
-            joyLevel: 100, // percentage multiplier
 
             toyLines: [
                 { id: 'bears', name: 'Teddy Bear Stitchers', emoji: '🧸', baseCost: 15, basePerSec: 1, count: 0 },
@@ -252,9 +255,9 @@
             ],
 
             upgrades: [
-                { id: 'hot_cocoa', name: 'Hot Cocoa Station', emoji: '☕', cost: 100, desc: 'Increases Crafting Click Power by +2', bought: false, apply: () => state.clickPower += 2 },
-                { id: 'magic_dust', name: 'Pixie Dust Coating', emoji: '✨', cost: 1000, desc: 'Doubles efficiency of ALL Toy Lines!', bought: false, apply: () => state.toyLines.forEach(l => l.basePerSec *= 2) },
-                { id: 'jingle_bells', name: 'Golden Jingle Bells', emoji: '🔔', cost: 10000, desc: 'Boosts Workshop Joy by +50%!', bought: false, apply: () => state.joyLevel += 50 }
+                { id: 'hot_cocoa', name: 'Hot Cocoa Station', emoji: '☕', cost: 100, desc: 'Increases Crafting Click Power by +2', bought: false },
+                { id: 'magic_dust', name: 'Pixie Dust Coating', emoji: '✨', cost: 1000, desc: 'Doubles efficiency of ALL Toy Lines!', bought: false },
+                { id: 'jingle_bells', name: 'Golden Jingle Bells', emoji: '🔔', cost: 10000, desc: 'Boosts Workshop Joy by +50%!', bought: false }
             ],
 
             missions: [
@@ -264,11 +267,52 @@
             ]
         };
 
+        const saveKey = 'elf-workshop-tycoon-v1';
+        const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+        function saveWorkshop() {
+            const {candy, totalGiftsCrafted, toyLines, elves, upgrades, missions} = state;
+            try {
+                localStorage.setItem(saveKey, JSON.stringify({
+                    candy, totalGiftsCrafted,
+                    lines: Object.fromEntries(toyLines.map(line => [line.id, line.count])),
+                    elves: elves.filter(elf => elf.hired).map(elf => elf.id),
+                    upgrades: upgrades.filter(upgrade => upgrade.bought).map(upgrade => upgrade.id),
+                    missions: missions.filter(mission => mission.completed).map(mission => mission.id)
+                }));
+            } catch {
+                document.getElementById('save-warning').hidden = false;
+            }
+        }
+
+        function restoreWorkshop() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(saveKey));
+                if (!saved) return;
+                for (const key of ['candy', 'totalGiftsCrafted']) {
+                    if (Number.isFinite(saved[key]) && saved[key] >= 0) state[key] = saved[key];
+                }
+                state.toyLines.forEach(line => {
+                    const count = saved.lines?.[line.id];
+                    if (Number.isSafeInteger(count) && count >= 0) line.count = count;
+                });
+                for (const [group, flag] of [['elves', 'hired'], ['upgrades', 'bought'], ['missions', 'completed']]) {
+                    if (!Array.isArray(saved[group])) continue;
+                    state[group].forEach(item => item[flag] = saved[group].includes(item.id));
+                }
+            } catch {
+                document.getElementById('save-warning').hidden = false;
+            }
+        }
+
         // Total rate calculation
+        const clickPower = () => state.upgrades[0].bought ? 3 : 1;
+        const joyLevel = () => state.upgrades[2].bought ? 150 : 100;
+
         function getPassiveRate() {
             let baseRate = state.toyLines.reduce((acc, l) => acc + (l.count * l.basePerSec), 0);
             let elfBoost = state.elves.reduce((acc, e) => acc + (e.hired ? e.boost : 0), 0);
-            let joyMultiplier = state.joyLevel / 100;
+            if (state.upgrades[1].bought) baseRate *= 2;
+            const joyMultiplier = joyLevel() / 100;
             return Math.round((baseRate + elfBoost) * joyMultiplier);
         }
 
@@ -277,12 +321,12 @@
          */
         function updateDashboard() {
             document.getElementById('candy-display').innerText = Math.floor(state.candy).toLocaleString();
-            document.getElementById('joy-display').innerText = `${state.joyLevel}%`;
+            document.getElementById('joy-display').innerText = `${joyLevel()}%`;
 
             const totalElvesCount = state.elves.filter(e => e.hired).length + 1;
             document.getElementById('elves-display').innerText = totalElvesCount;
             document.getElementById('rate-display').innerText = `${getPassiveRate().toLocaleString()} / sec`;
-            document.getElementById('click-value').innerText = state.clickPower;
+            document.getElementById('click-value').innerText = clickPower();
         }
 
         function renderToyLines() {
@@ -430,7 +474,6 @@
             if (state.candy >= up.cost && !up.bought) {
                 state.candy -= up.cost;
                 up.bought = true;
-                up.apply();
                 logAction(`Magic Upgrade Activated: ${up.name}!`);
                 updateAll();
                 triggerConfetti();
@@ -453,7 +496,7 @@
         }
 
         function triggerConfetti() {
-            if (typeof confetti === 'function') {
+            if (!reducedMotion.matches && typeof confetti === 'function') {
                 confetti({
                     particleCount: 80,
                     spread: 60,
@@ -464,6 +507,7 @@
         }
 
         function updateAll() {
+            saveWorkshop();
             updateDashboard();
             renderToyLines();
             renderElves();
@@ -475,6 +519,7 @@
          * SNOW BACKGROUND
          */
         function initSnow() {
+            if (reducedMotion.matches) return;
             const canvas = document.getElementById('snow-canvas');
             const ctx = canvas.getContext('2d');
             function resize() {
@@ -515,47 +560,53 @@
          * INITIALIZATION & TICKER LOOP
          */
         document.addEventListener('DOMContentLoaded', () => {
+            restoreWorkshop();
             initSnow();
             updateAll();
 
             // Crafting Manual Clicker with Floating Floating Numbers Animation
             const craftBtn = document.getElementById('craft-btn');
             craftBtn.addEventListener('click', (e) => {
-                state.candy += state.clickPower;
-                state.totalGiftsCrafted += state.clickPower;
+                state.candy += clickPower();
+                state.totalGiftsCrafted += clickPower();
 
-                // Spawn Floating +1 Pop-up Number
-                const rect = craftBtn.getBoundingClientRect();
-                const numEl = document.createElement('div');
-                numEl.className = 'float-number text-lg font-black';
-                numEl.innerText = `+${state.clickPower} 🍬`;
-                numEl.style.left = `${e.clientX - rect.left + (Math.random() * 20 - 10)}px`;
-                numEl.style.top = `${e.clientY - rect.top - 10}px`;
-                craftBtn.parentElement.appendChild(numEl);
+                if (!reducedMotion.matches && e.detail > 0) {
+                    const rect = craftBtn.getBoundingClientRect();
+                    const number = document.createElement('div');
+                    number.className = 'float-number text-lg font-black';
+                    number.setAttribute('aria-hidden', 'true');
+                    number.innerText = `+${clickPower()} 🍬`;
+                    number.style.left = `${e.clientX - rect.left}px`;
+                    number.style.top = `${e.clientY - rect.top - 10}px`;
+                    craftBtn.parentElement.appendChild(number);
+                    setTimeout(() => number.remove(), 800);
+                }
 
-                setTimeout(() => numEl.remove(), 800);
-
-                updateDashboard();
-                renderToyLines();
-                renderElves();
-                renderUpgrades();
-                renderDeliveries();
+                updateAll();
             });
 
-            // Passive Game Loop (Runs 10x per second for smooth updates)
+            // Keep interactive lists stable while the player is using their controls.
+            let lastTick = performance.now();
+            document.addEventListener('visibilitychange', () => { lastTick = performance.now(); });
             setInterval(() => {
-                const passiveRate = getPassiveRate();
-                if (passiveRate > 0) {
-                    const gain = passiveRate / 10;
-                    state.candy += gain;
-                    state.totalGiftsCrafted += gain;
-                    updateDashboard();
-                    renderToyLines();
-                    renderElves();
-                    renderUpgrades();
-                    renderDeliveries();
+                const now = performance.now();
+                const gain = getPassiveRate() * (now - lastTick) / 1000;
+                lastTick = now;
+                if (document.hidden || gain <= 0) return;
+                state.candy += gain;
+                state.totalGiftsCrafted += gain;
+                const focused = document.activeElement;
+                updateDashboard();
+                for (const [id, render] of [
+                    ['toy-lines-container', renderToyLines],
+                    ['elves-list', renderElves],
+                    ['upgrades-list', renderUpgrades],
+                    ['delivery-list', renderDeliveries]
+                ]) {
+                    if (!document.getElementById(id)?.contains(focused)) render();
                 }
-            }, 100);
+                saveWorkshop();
+            }, 1000);
 
             // Tab Navigation Logic
             const tabElves = document.getElementById('tab-elves');
@@ -582,10 +633,10 @@
 
             // Reset Game Progress
             document.getElementById('reset-game-btn').addEventListener('click', () => {
+                if (!confirm('Reset all Elf Workshop progress?')) return;
+                lastTick = performance.now();
                 state.candy = 100;
-                state.clickPower = 1;
                 state.totalGiftsCrafted = 0;
-                state.joyLevel = 100;
                 state.toyLines.forEach(l => l.count = 0);
                 state.elves.forEach(e => e.hired = false);
                 state.upgrades.forEach(u => u.bought = false);
