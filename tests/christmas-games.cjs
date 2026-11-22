@@ -168,3 +168,50 @@ test('Toy Shop shows bundled art and can finish all twelve orders', () =>
         await page.locator('#ship').click();
         assert.equal(await page.locator('#shipped').textContent(), '0/12');
     }, page => page.clock.install()));
+
+test('Roulette charges for a reward once and restores the balance and inventory', () =>
+    withGame(preview + '12_days_of_christmas_roulette.html', async page => {
+        const points = page.locator('#total-points-display');
+        const shop = page.locator('#shop-view');
+        const redeem = shop.getByRole('button', { name: 'Redeem' });
+        assert.equal(await redeem.nth(1).isDisabled(), true);
+        await redeem.first().click();
+        assert.equal(await points.textContent(), '100');
+        assert.equal(await shop.getByText('Owned', { exact: true }).count(), 1);
+        await page.evaluate(() => buyShopItem('item_pear'));
+        assert.equal(await points.textContent(), '100');
+
+        await page.reload();
+        assert.equal(await points.textContent(), '100');
+        assert.equal(await shop.getByText('Owned', { exact: true }).count(), 1);
+        await page.locator('#tab-inv-btn').click();
+        assert.equal(await page.locator('#inventory-view').getByText('Golden Pear Tree').isVisible(), true);
+        assert.equal(await page.locator('#inventory-count').textContent(), '1');
+    }, page => page.addInitScript(() => {
+        if (localStorage.getItem('christmas_points') === null) {
+            localStorage.setItem('christmas_points', '600');
+        }
+    })));
+
+test('Advent rolls into January and all twelve ornaments can be revealed', () =>
+    withGame('/advent/', async page => {
+        const doors = page.locator('.door');
+        assert.equal(await doors.count(), 12);
+        assert.equal(await doors.nth(10).getAttribute('aria-disabled'), 'false');
+        assert.equal(await doors.last().getAttribute('aria-disabled'), 'true');
+        await doors.last().focus();
+        await page.keyboard.press('Enter');
+        assert.equal(await page.locator('#reveal').isVisible(), false);
+        await page.clock.runFor(31000);
+        assert.equal(await doors.last().getAttribute('aria-disabled'), 'false');
+
+        for (let index = 0; index < 12; index++) {
+            const image = page.locator('#ornament');
+            await doors.nth(index).click();
+            assert.equal(await image.getAttribute('src'), `ornaments/day-${index + 1}.webp`);
+            await image.evaluate(element => element.decode());
+            await page.getByRole('button', { name: 'Close', exact: true }).click();
+        }
+        await page.reload();
+        assert.equal(await page.locator('#collection-progress').textContent(), '12 of 12 ornaments collected');
+    }, page => page.clock.install({ time: new Date('2027-01-05T06:59:59Z') })));
